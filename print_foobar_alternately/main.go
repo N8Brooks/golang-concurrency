@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 type FooBar struct {
 	n   int
@@ -27,17 +30,31 @@ func (fb *FooBar) Bar(printBar func()) {
 	for i := 0; i < fb.n; i++ {
 		<-fb.bar
 		printBar()
-		fb.foo <- struct{}{}
+		if i < fb.n-1 {
+			fb.foo <- struct{}{}
+		}
 	}
 }
 
 func (fb *FooBar) Run() {
+	if fb.n <= 0 {
+		return
+	}
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		fb.Foo(func() { fmt.Print("foo") })
+	}()
+	go func() {
+		defer wg.Done()
+		fb.Bar(func() { fmt.Print("bar") })
+	}()
 	fb.foo <- struct{}{}
+	wg.Wait()
 }
 
 func main() {
-	fb := NewFooBar(10)
-	go fb.Foo(func() { fmt.Print("foo") })
-	go fb.Bar(func() { fmt.Print("bar") })
+	fb := NewFooBar(3)
 	fb.Run()
 }
