@@ -58,6 +58,7 @@ func (h2o *H2O) run(water string) string {
 		}
 	}
 	wg.Wait()
+	close(ch)
 
 	result := strings.Builder{}
 	for i := 0; i < len(water); i++ {
