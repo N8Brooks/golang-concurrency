@@ -9,13 +9,12 @@ import (
 )
 
 func TestH2O(t *testing.T) {
-	h2o := NewH2O()
 	inputs := []string{
 		"HOH",
 		"OOHHHH",
 		"HHHHHHHHHHOHHOHHHHOOHHHOOOOHHOOHOHHHHHOOHOHHHOOOOOOHHHHHHHHH",
 	}
-
+	h2o := NewH2O()
 	for _, input := range inputs {
 		actual := h2o.run(input)
 		expected, err := makeExpected(input, actual)
