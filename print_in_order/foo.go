@@ -1,33 +1,30 @@
 package foo
 
-import (
-	"sync"
-)
-
 type Foo struct {
-	firstJobDone  sync.Mutex
-	secondJobDone sync.Mutex
+	first  chan struct{}
+	second chan struct{}
 }
 
 func NewFoo() *Foo {
-	f := &Foo{}
-	f.firstJobDone.Lock()
-	f.secondJobDone.Lock()
+	f := &Foo{
+		first:  make(chan struct{}),
+		second: make(chan struct{}),
+	}
 	return f
 }
 
 func (f *Foo) First(printFirst func()) {
 	printFirst()
-	f.firstJobDone.Unlock()
+	f.first <- struct{}{}
 }
 
 func (f *Foo) Second(printSecond func()) {
-	f.firstJobDone.Lock()
+	<-f.first
 	printSecond()
-	f.secondJobDone.Unlock()
+	f.second <- struct{}{}
 }
 
 func (f *Foo) Third(printThird func()) {
-	f.secondJobDone.Lock()
+	<-f.second
 	printThird()
 }
