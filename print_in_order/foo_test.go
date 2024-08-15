@@ -26,6 +26,9 @@ func TestFoo(t *testing.T) {
 
 func (f *Foo) run(order [3]int) string {
 	ch := make(chan string, 3)
+	first := func() { ch <- "first" }
+	second := func() { ch <- "second" }
+	third := func() { ch <- "third" }
 
 	var wg sync.WaitGroup
 	wg.Add(3)
@@ -34,17 +37,17 @@ func (f *Foo) run(order [3]int) string {
 		case 1:
 			go func() {
 				defer wg.Done()
-				f.First(func() { ch <- "first" })
+				f.First(first)
 			}()
 		case 2:
 			go func() {
 				defer wg.Done()
-				f.Second(func() { ch <- "second" })
+				f.Second(second)
 			}()
 		case 3:
 			go func() {
 				defer wg.Done()
-				f.Third(func() { ch <- "third" })
+				f.Third(third)
 			}()
 		}
 	}
