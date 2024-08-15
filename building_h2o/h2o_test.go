@@ -23,8 +23,8 @@ func TestH2O(t *testing.T) {
 			t.Errorf("invalid input: %s", input)
 		}
 
-		t.Logf("input: %s", input)
-		t.Logf("actual: %s", actual)
+		t.Logf("input:    %s", input)
+		t.Logf("actual:   %s", actual)
 		t.Logf("expected: %s", expected)
 
 		if expected != actual {
@@ -34,19 +34,16 @@ func TestH2O(t *testing.T) {
 }
 
 func (h2o *H2O) run(water string) string {
-	var wg sync.WaitGroup
-	wg.Add(len(water))
-
 	ch := make(chan string, len(water))
-
 	releaseHydrogen := func() {
 		ch <- "H"
 	}
-
 	releaseOxygen := func() {
 		ch <- "O"
 	}
 
+	var wg sync.WaitGroup
+	wg.Add(len(water))
 	for _, c := range water {
 		switch c {
 		case 'H':
@@ -61,15 +58,13 @@ func (h2o *H2O) run(water string) string {
 			}()
 		}
 	}
-
 	wg.Wait()
-	result := ""
-	for i := 0; i < len(water); i++ {
-		result += <-ch
-	}
-	close(ch)
 
-	return result
+	result := strings.Builder{}
+	for i := 0; i < len(water); i++ {
+		result.WriteString(<-ch)
+	}
+	return result.String()
 }
 
 func makeExpected(input, actual string) (string, error) {
