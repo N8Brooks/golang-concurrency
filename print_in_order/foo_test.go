@@ -54,9 +54,9 @@ func (f *Foo) run(order [3]int) string {
 	wg.Wait()
 	close(ch)
 
-	result := strings.Builder{}
+	var sb strings.Builder
 	for i := 0; i < 3; i++ {
-		result.WriteString(<-ch)
+		sb.WriteString(<-ch)
 	}
-	return result.String()
+	return sb.String()
 }
