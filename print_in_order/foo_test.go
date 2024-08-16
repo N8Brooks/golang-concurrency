@@ -1,13 +1,16 @@
 package foo
 
 import (
+	"errors"
+	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
 )
 
 func TestFoo(t *testing.T) {
-	tests := [][3]int{
+	numss := [][3]int{
 		{2, 3, 1},
 		{1, 3, 2},
 		{3, 2, 1},
@@ -16,12 +19,24 @@ func TestFoo(t *testing.T) {
 		{2, 1, 3},
 	}
 	f := NewFoo()
-	for _, nums := range tests {
+	for _, nums := range numss {
+		if err := validateNums(nums); err != nil {
+			panic(err)
+		}
 		output := f.run(nums)
 		if output != "firstsecondthird" {
 			t.Errorf("expected firstsecondthird, but got %s", output)
 		}
 	}
+}
+
+func validateNums(nums [3]int) error {
+	perm := nums
+	sort.Ints(perm[:])
+	if !slices.Equal(perm[:], []int{1, 2, 3}) {
+		return errors.New("nums must be a permutation of [1, 2, 3]")
+	}
+	return nil
 }
 
 func (f *Foo) run(order [3]int) string {
