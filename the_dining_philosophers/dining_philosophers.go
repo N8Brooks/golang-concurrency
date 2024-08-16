@@ -17,29 +17,29 @@ func NewDiningPhilosophers() *DiningPhilosophers {
 }
 
 func (dp *DiningPhilosophers) WantsToEat(philosopher int, pickLeftFork, pickRightFork, eat, putLeftFork, putRightFork func()) {
-	if philosopher == 4 {
+	if philosopher == 0 {
 		dp.forks[0] <- struct{}{}
 		pickRightFork()
 		dp.forks[4] <- struct{}{}
 		pickLeftFork()
 	} else {
-		dp.forks[philosopher] <- struct{}{}
+		dp.forks[philosopher-1] <- struct{}{}
 		pickLeftFork()
-		dp.forks[philosopher+1] <- struct{}{}
+		dp.forks[philosopher] <- struct{}{}
 		pickRightFork()
 	}
 
 	eat()
 
-	if philosopher == 4 {
+	if philosopher == 0 {
 		putRightFork()
 		<-dp.forks[0]
 		putLeftFork()
 		<-dp.forks[4]
 	} else {
 		putLeftFork()
-		<-dp.forks[philosopher]
+		<-dp.forks[philosopher-1]
 		putRightFork()
-		<-dp.forks[philosopher+1]
+		<-dp.forks[philosopher]
 	}
 }
