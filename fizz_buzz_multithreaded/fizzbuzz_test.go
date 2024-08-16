@@ -14,11 +14,11 @@ func TestFizzBuzz(t *testing.T) {
 		5,
 	}
 	for _, n := range ns {
-		if err := validateN(n); err != nil {
-			panic(err)
-		}
 		fb := NewFizzBuzz(n)
-		actual := fb.run()
+		actual, err := fb.run()
+		if err != nil {
+			t.Fatalf("NewFizzBuzz(%d).run() = %v, want nil", n, err)
+		}
 		expected := makeExpected(n)
 		if !slices.Equal(actual, expected) {
 			t.Errorf("NewFizzBuzz(%d).run() = %q; want %q", n, actual, expected)
@@ -26,22 +26,15 @@ func TestFizzBuzz(t *testing.T) {
 	}
 }
 
-func validateN(n int) error {
-	if n < 1 {
-		return errors.New("n must be greater than 0")
+func (fb *FizzBuzz) run() ([]string, error) {
+	if err := validateN(fb.n); err != nil {
+		return nil, err
 	}
-	if n > 50 {
-		return errors.New("n must be less than or equal to 50")
-	}
-	return nil
-}
 
-func (fb *FizzBuzz) run() []string {
 	var wg sync.WaitGroup
 	wg.Add(4)
 
 	ch := make(chan string, fb.n)
-	defer close(ch)
 
 	go func() {
 		defer wg.Done()
@@ -64,12 +57,23 @@ func (fb *FizzBuzz) run() []string {
 	}()
 
 	wg.Wait()
+	close(ch)
 
 	actual := make([]string, 0, fb.n)
 	for i := 0; i < fb.n; i++ {
 		actual = append(actual, <-ch)
 	}
-	return actual
+	return actual, nil
+}
+
+func validateN(n int) error {
+	if n < 1 {
+		return errors.New("n must be greater than 0")
+	}
+	if n > 50 {
+		return errors.New("n must be less than or equal to 50")
+	}
+	return nil
 }
 
 func makeExpected(n int) []string {
