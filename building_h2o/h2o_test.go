@@ -14,13 +14,14 @@ func TestH2O(t *testing.T) {
 		"OOHHHH",
 		"HHHHHHHHHHOHHOHHHHOOHHHOOOOHHOOHOHHHHHOOHOHHHOOOOOOHHHHHHHHH",
 	}
-	h2o := NewH2O()
 	for _, input := range inputs {
-		actual := h2o.run(input)
-		expected, err := makeExpected(input, actual)
-		if err != nil {
-			t.Errorf("invalid input: %s", input)
+		if err := validateInput(input); err != nil {
+			t.Fatalf("invalid input: %s", input)
 		}
+
+		h2o := NewH2O()
+		actual := h2o.run(input)
+		expected := makeExpected(input, actual)
 
 		t.Logf("input:    %s", input)
 		t.Logf("actual:   %s", actual)
@@ -32,46 +33,71 @@ func TestH2O(t *testing.T) {
 	}
 }
 
-func (h2o *H2O) run(water string) string {
-	ch := make(chan string, len(water))
-	releaseHydrogen := func() {
-		ch <- "H"
-	}
-	releaseOxygen := func() {
-		ch <- "O"
+func validateInput(water string) error {
+	errs := []error{}
+	if len(water)%3 != 0 {
+		errs = append(errs, errors.New("water molecule length must be a multiple of 3"))
 	}
 
+	n := len(water) / 3
+	if n <= 0 {
+		errs = append(errs, errors.New("n must be greater than 0"))
+	}
+	if n > 20 {
+		errs = append(errs, errors.New("n must be less than or equal to 20"))
+	}
+
+	h := strings.Count(water, "H")
+	o := strings.Count(water, "O")
+	if h+o != len(water) {
+		errs = append(errs, errors.New("water molecule must only contain H and O atoms"))
+	}
+	if h != 2*n {
+		errs = append(errs, errors.New("number of H atoms must be 2n"))
+	}
+	if o != n {
+		errs = append(errs, errors.New("number of O atoms must be n"))
+	}
+
+	return errors.Join(errs...)
+}
+
+func (h2o *H2O) run(water string) string {
 	var wg sync.WaitGroup
 	wg.Add(len(water))
+	ch := make(chan rune, len(water))
+
 	for _, c := range water {
 		switch c {
 		case 'H':
 			go func() {
 				defer wg.Done()
-				h2o.Hydrogen(releaseHydrogen)
+				h2o.Hydrogen(func() {
+					ch <- 'H'
+				})
 			}()
 		case 'O':
 			go func() {
 				defer wg.Done()
-				h2o.Oxygen(releaseOxygen)
+				h2o.Oxygen(func() {
+					ch <- 'O'
+				})
 			}()
 		}
 	}
+
 	wg.Wait()
 	close(ch)
 
-	result := strings.Builder{}
+	var actual strings.Builder
+	actual.Grow(len(water))
 	for i := 0; i < len(water); i++ {
-		result.WriteString(<-ch)
+		actual.WriteRune(<-ch)
 	}
-	return result.String()
+	return actual.String()
 }
 
-func makeExpected(input, actual string) (string, error) {
-	if err := validateInput(input); err != nil {
-		return "", err
-	}
-
+func makeExpected(input, actual string) string {
 	// Map input to actual length
 	if len(input) > len(actual) {
 		actual += strings.Repeat(" ", len(input)-len(actual))
@@ -81,73 +107,16 @@ func makeExpected(input, actual string) (string, error) {
 
 	splits := strings.Split(actual, "")
 	chunks := slices.Chunk(splits, 3)
-	expected := ""
+	var expected strings.Builder
 	for chunk := range chunks {
-		expected += minDiffWater(chunk)
-	}
-
-	return expected, nil
-}
-
-func validateInput(water string) error {
-	errs := []error{}
-	if len(water)%3 != 0 {
-		errs = append(errs, errors.New("water molecule length must be a multiple of 3"))
-	}
-	n := len(water) / 3
-	if n <= 0 {
-		errs = append(errs, errors.New("n must be greater than 0"))
-	}
-	if n > 20 {
-		errs = append(errs, errors.New("n must be less than or equal to 20"))
-	}
-	if strings.Count(water, "O")+strings.Count(water, "H") != len(water) {
-		errs = append(errs, errors.New("water molecule must only contain O and H atoms"))
-	}
-	if strings.Count(water, "H") != 2*n {
-		errs = append(errs, errors.New("number of H atoms must be 2n"))
-	}
-	if strings.Count(water, "O") != n {
-		errs = append(errs, errors.New("number of O atoms must be n"))
-	}
-	return errors.Join(errs...)
-}
-
-// Returns the water molecule with the least difference in order to the actual
-func minDiffWater(chunk []string) string {
-	if len(chunk) != 3 {
-		panic("chunk must be of length 3")
-	}
-
-	result := ""
-	var hCount, oCount int
-	for _, c := range chunk {
-		switch c {
-		case "H":
-			if hCount < 2 {
-				result += "H"
-				hCount++
-			} else {
-				result += "O"
-				oCount++
-			}
-		case "O":
-			if oCount < 1 {
-				result += "O"
-				oCount++
-			} else {
-				result += "H"
-				hCount++
-			}
-		default:
-			if hCount < 2 {
-				result += "H"
-				hCount++
-			} else {
-				result += "O"
-				oCount++
-			}
+		molecule := strings.Join(chunk, "")
+		h := strings.Count(molecule, "H")
+		o := strings.Count(molecule, "O")
+		if h == 2 && o == 1 {
+			expected.WriteString(molecule)
+		} else {
+			expected.WriteString("HHO")
 		}
 	}
-	return result
+	return expected.String()
 }
