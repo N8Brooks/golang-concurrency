@@ -1,4 +1,4 @@
-package zero_even_odd
+package zeroevenodd
 
 type ZeroEvenOdd struct {
 	n    int
