@@ -1,4 +1,4 @@
-package dining_philosophers
+package diningphilosophers
 
 type DiningPhilosophers struct {
 	forks [5]chan struct{}

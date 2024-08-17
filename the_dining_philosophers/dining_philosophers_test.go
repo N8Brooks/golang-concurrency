@@ -1,4 +1,4 @@
-package dining_philosophers
+package diningphilosophers
 
 import (
 	"errors"
@@ -21,12 +21,12 @@ const (
 )
 
 const (
-	// N_PHILOSOPHERS is the number of philosophers and the number of forks
-	N_PHILOSOPHERS = 5
-	// N_CALLS_PER_PHILOSOPHER is the number of function calls per philosopher
-	N_CALLS_PER_PHILOSOPHER = 5
-	// N_CALLS_PER_N is the number of function calls for each n
-	N_CALLS_PER_N = N_PHILOSOPHERS * N_CALLS_PER_PHILOSOPHER
+	// NumPhilosophers is the number of philosophers and the number of forks
+	NumPhilosophers = 5
+	// NumCallsPerPhilosopher is the number of function calls per philosopher
+	NumCallsPerPhilosopher = 5
+	// NumCallsPerN is the number of function calls for each n
+	NumCallsPerN = NumPhilosophers * NumCallsPerPhilosopher
 )
 
 func TestDiningPhilosophers(t *testing.T) {
@@ -53,8 +53,8 @@ func (dp *DiningPhilosophers) run(n int) ([][3]int, error) {
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(N_CALLS_PER_PHILOSOPHER * n)
-	ch := make(chan [3]int, N_CALLS_PER_N*n)
+	wg.Add(NumCallsPerPhilosopher * n)
+	ch := make(chan [3]int, NumCallsPerN*n)
 
 	for _, i := range makeRandSeq(n) {
 		go func() {
@@ -72,7 +72,7 @@ func (dp *DiningPhilosophers) run(n int) ([][3]int, error) {
 	wg.Wait()
 	close(ch)
 
-	actual := make([][3]int, 0, N_CALLS_PER_N*n)
+	actual := make([][3]int, 0, NumCallsPerN*n)
 	for call := range ch {
 		actual = append(actual, call)
 	}
@@ -80,8 +80,8 @@ func (dp *DiningPhilosophers) run(n int) ([][3]int, error) {
 }
 
 func makeRandSeq(n int) []int {
-	sequence := make([]int, 0, N_PHILOSOPHERS*n)
-	for i := 0; i < N_PHILOSOPHERS; i++ {
+	sequence := make([]int, 0, NumPhilosophers*n)
+	for i := 0; i < NumPhilosophers; i++ {
 		for j := 0; j < n; j++ {
 			sequence = append(sequence, i)
 		}
@@ -103,30 +103,30 @@ func validateN(n int) error {
 }
 
 func validateCallCounts(calls [][3]int) error {
-	n := len(calls) / N_CALLS_PER_N
-	counts := [N_CALLS_PER_N]int{}
+	n := len(calls) / NumCallsPerN
+	counts := [NumCallsPerN]int{}
 
 	for _, call := range calls {
 		philosopher := call[0]
 		fork := call[1]
 		operation := call[2]
 
-		var funcId int
+		var funcID int
 		if fork == Left && operation == Pick {
-			funcId = 0
+			funcID = 0
 		} else if fork == Right && operation == Pick {
-			funcId = 1
+			funcID = 1
 		} else if fork == None && operation == Eat {
-			funcId = 2
+			funcID = 2
 		} else if fork == Left && operation == Put {
-			funcId = 3
+			funcID = 3
 		} else if fork == Right && operation == Put {
-			funcId = 4
+			funcID = 4
 		} else {
 			return fmt.Errorf("invalid call: %v", call)
 		}
 
-		counts[philosopher*N_CALLS_PER_PHILOSOPHER+funcId]++
+		counts[philosopher*NumCallsPerPhilosopher+funcID]++
 	}
 
 	for _, count := range counts {
@@ -139,7 +139,7 @@ func validateCallCounts(calls [][3]int) error {
 }
 
 func validateCallOrder(calls [][3]int) error {
-	forks := [N_PHILOSOPHERS]int{-1, -1, -1, -1, -1}
+	forks := [NumPhilosophers]int{-1, -1, -1, -1, -1}
 	for _, call := range calls {
 		philosopher := call[0]
 
@@ -151,7 +151,7 @@ func validateCallOrder(calls [][3]int) error {
 		case Left:
 			i = philosopher
 		case Right:
-			i = (philosopher + 1) % N_PHILOSOPHERS
+			i = (philosopher + 1) % NumPhilosophers
 		}
 
 		operation := call[2]
@@ -167,7 +167,7 @@ func validateCallOrder(calls [][3]int) error {
 			}
 			forks[i] = -1
 		case Eat:
-			if forks[philosopher] != philosopher || forks[(philosopher+1)%N_PHILOSOPHERS] != philosopher {
+			if forks[philosopher] != philosopher || forks[(philosopher+1)%NumPhilosophers] != philosopher {
 				return errors.New("forks are not picked")
 			}
 		}
