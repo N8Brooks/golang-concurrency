@@ -1,9 +1,4 @@
-package main
-
-import (
-	"fmt"
-	"sync"
-)
+package zero_even_odd
 
 type ZeroEvenOdd struct {
 	n    int
@@ -14,9 +9,10 @@ type ZeroEvenOdd struct {
 
 func NewZeroEvenOdd(n int) *ZeroEvenOdd {
 	z := &ZeroEvenOdd{n: n}
-	z.zero = make(chan struct{})
+	z.zero = make(chan struct{}, 1)
 	z.even = make(chan struct{})
 	z.odd = make(chan struct{})
+	z.zero <- struct{}{}
 	return z
 }
 
@@ -30,6 +26,7 @@ func (z *ZeroEvenOdd) Zero(printNumber func(int)) {
 			z.even <- struct{}{}
 		}
 	}
+	close(z.zero)
 }
 
 func (z *ZeroEvenOdd) Even(printNumber func(int)) {
@@ -40,6 +37,7 @@ func (z *ZeroEvenOdd) Even(printNumber func(int)) {
 			z.zero <- struct{}{}
 		}
 	}
+	close(z.even)
 }
 
 func (z *ZeroEvenOdd) Odd(printNumber func(int)) {
@@ -50,31 +48,5 @@ func (z *ZeroEvenOdd) Odd(printNumber func(int)) {
 			z.zero <- struct{}{}
 		}
 	}
-}
-
-func (z *ZeroEvenOdd) Run() {
-	if z.n <= 0 {
-		return
-	}
-	var wg sync.WaitGroup
-	wg.Add(3)
-	go func() {
-		defer wg.Done()
-		z.Zero(func(n int) { fmt.Print(n) })
-	}()
-	go func() {
-		defer wg.Done()
-		z.Even(func(n int) { fmt.Print(n) })
-	}()
-	go func() {
-		defer wg.Done()
-		z.Odd(func(n int) { fmt.Print(n) })
-	}()
-	z.zero <- struct{}{}
-	wg.Wait()
-}
-
-func main() {
-	z := NewZeroEvenOdd(2)
-	z.Run()
+	close(z.odd)
 }
