@@ -40,17 +40,29 @@ func (z *ZeroEvenOdd) run() string {
 
 	go func() {
 		defer wg.Done()
-		z.Zero(func(n int) { ch <- n })
+		z.Zero(func(n int) {
+			if n == 0 {
+				ch <- n
+			}
+		})
 	}()
 
 	go func() {
 		defer wg.Done()
-		z.Even(func(n int) { ch <- n })
+		z.Even(func(n int) {
+			if n&1 == 0 {
+				ch <- n
+			}
+		})
 	}()
 
 	go func() {
 		defer wg.Done()
-		z.Odd(func(n int) { ch <- n })
+		z.Odd(func(n int) {
+			if n&1 == 1 {
+				ch <- n
+			}
+		})
 	}()
 
 	wg.Wait()
