@@ -18,21 +18,21 @@ func NewFizzBuzz(n int) *FizzBuzz {
 }
 
 func (fb *FizzBuzz) Fizz(printFizz func()) {
-	for _ = range fb.fizz {
+	for range fb.fizz {
 		printFizz()
 		fb.number <- struct{}{}
 	}
 }
 
 func (fb *FizzBuzz) Buzz(printBuzz func()) {
-	for _ = range fb.buzz {
+	for range fb.buzz {
 		printBuzz()
 		fb.number <- struct{}{}
 	}
 }
 
 func (fb *FizzBuzz) FizzBuzz(printFizzBuzz func()) {
-	for _ = range fb.fizzbuzz {
+	for range fb.fizzbuzz {
 		printFizzBuzz()
 		fb.number <- struct{}{}
 	}
