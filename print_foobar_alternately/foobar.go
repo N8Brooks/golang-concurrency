@@ -16,7 +16,7 @@ func NewFooBar(n int) *FooBar {
 
 func (fb *FooBar) Foo(printFoo func()) {
 	defer close(fb.bar)
-	for _ = range fb.foo {
+	for range fb.foo {
 		printFoo()
 		fb.bar <- struct{}{}
 	}
