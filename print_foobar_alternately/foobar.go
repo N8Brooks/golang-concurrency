@@ -10,25 +10,22 @@ func NewFooBar(n int) *FooBar {
 	fb := &FooBar{n: n}
 	fb.foo = make(chan struct{}, 1)
 	fb.bar = make(chan struct{})
-	fb.foo <- struct{}{}
 	return fb
 }
 
 func (fb *FooBar) Foo(printFoo func()) {
-	defer close(fb.bar)
-	for range fb.foo {
+	fb.foo <- struct{}{}
+	for i := 0; i < fb.n; i++ {
+		<-fb.foo
 		printFoo()
 		fb.bar <- struct{}{}
 	}
 }
 
 func (fb *FooBar) Bar(printBar func()) {
-	defer close(fb.foo)
-	for i := 1; i < fb.n; i++ {
+	for i := 0; i < fb.n; i++ {
 		<-fb.bar
 		printBar()
 		fb.foo <- struct{}{}
 	}
-	<-fb.bar
-	printBar()
 }
