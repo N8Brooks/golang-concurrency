@@ -58,7 +58,7 @@ func TestCigaretteSmokers(t *testing.T) {
 			smokerIDs <- SmokerWithMatch
 		})
 
-		go cs.Start()
+		go cs.Run()
 
 		for range numIterations {
 			expected := smokerID(rand.N(3) + 1)

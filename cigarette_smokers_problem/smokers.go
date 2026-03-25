@@ -32,7 +32,7 @@ func NewCigaretteSmokers(ctx context.Context, a Agent) *CigaretteSmokers {
 	return &cs
 }
 
-func (cs *CigaretteSmokers) Start() {
+func (cs *CigaretteSmokers) Run() {
 	for {
 		var isTobacco, isPaper, isMatch bool
 
