@@ -58,67 +58,55 @@ func TestCigaretteSmokers(t *testing.T) {
 		a := newAgent()
 		cs := cigarette_smokers_problem.NewCigaretteSmokers(t.Context(), a)
 
-		smokerWithTobaccoSupplies := make(chan struct{}, numIterations)
-		smokerWithTobaccoCigarettes := make(chan struct{}, numIterations)
-		smokerWithTobaccoSmoked := atomic.Int64{}
+		var smokerWithTobaccoSupplies, smokerWithTobaccoCigarettes, smokerWithTobaccoActual atomic.Int64
 		go cs.SmokerWithTobacco(func() {
-			select {
-			case <-smokerWithTobaccoSupplies:
-				t.Log("smoker with tobacco made a cigarette")
-			default:
+			if smokerWithTobaccoSupplies.Add(-1) < 0 {
 				t.Error("smoker with tobacco could not make a cigarette")
+			} else {
+				t.Log("smoker with tobacco made a cigarette")
 			}
-			smokerWithTobaccoCigarettes <- struct{}{}
+			smokerWithTobaccoCigarettes.Add(1)
 		}, func() {
-			select {
-			case <-smokerWithTobaccoCigarettes:
-				t.Log("smoker with tobacco smoked a cigarette")
-			default:
+			if smokerWithTobaccoCigarettes.Add(-1) < 0 {
 				t.Error("smoker with tobacco could not smoke a cigarette")
+			} else {
+				t.Log("smoker with tobacco smoked a cigarette")
 			}
-			smokerWithTobaccoSmoked.Add(1)
+			smokerWithTobaccoActual.Add(1)
 		})
 
-		smokerWithPaperSupplies := make(chan struct{}, numIterations)
-		smokerWithPaperCigarettes := make(chan struct{}, numIterations)
-		smokerWithPaperSmoked := atomic.Int64{}
+		var smokerWithPaperSupplies, smokerWithPaperCigarettes, smokerWithPaperActual atomic.Int64
 		go cs.SmokerWithPaper(func() {
-			select {
-			case <-smokerWithPaperSupplies:
-				t.Log("smoker with paper made a cigarette")
-			default:
+			if smokerWithPaperSupplies.Add(-1) < 0 {
 				t.Error("smoker with paper could not make a cigarette")
+			} else {
+				t.Log("smoker with paper made a cigarette")
 			}
-			smokerWithPaperCigarettes <- struct{}{}
+			smokerWithPaperCigarettes.Add(1)
 		}, func() {
-			select {
-			case <-smokerWithPaperCigarettes:
-				t.Log("smoker with paper smoked a cigarette")
-			default:
+			if smokerWithPaperCigarettes.Add(-1) < 0 {
 				t.Error("smoker with paper could not smoke a cigarette")
+			} else {
+				t.Log("smoker with paper smoked a cigarette")
 			}
-			smokerWithPaperSmoked.Add(1)
+			smokerWithPaperActual.Add(1)
 		})
 
-		smokerWithMatchSupplies := make(chan struct{}, numIterations)
-		smokerWithMatchCigarettes := make(chan struct{}, numIterations)
-		smokerWithMatchSmoked := atomic.Int64{}
+		var smokerWithMatchSupplies, smokerWithMatchCigarettes, smokerWithMatchActual atomic.Int64
 		go cs.SmokerWithMatch(func() {
-			select {
-			case <-smokerWithMatchSupplies:
-				t.Log("smoker with match made a cigarette")
-			default:
+			if smokerWithMatchSupplies.Add(-1) < 0 {
 				t.Error("smoker with match could not make a cigarette")
+			} else {
+				t.Log("smoker with match made a cigarette")
 			}
-			smokerWithMatchCigarettes <- struct{}{}
+			smokerWithMatchCigarettes.Add(1)
 		}, func() {
-			select {
-			case <-smokerWithMatchCigarettes:
-				t.Log("smoker with match smoked a cigarette")
-			default:
+			if smokerWithMatchCigarettes.Add(-1) < 0 {
 				t.Error("smoker with match could not smoke a cigarette")
+			} else {
+				t.Log("smoker with match smoked a cigarette")
 			}
-			smokerWithMatchSmoked.Add(1)
+			smokerWithMatchActual.Add(1)
 		})
 
 		go cs.Run()
@@ -130,17 +118,17 @@ func TestCigaretteSmokers(t *testing.T) {
 				expected := smokerID(rand.N(3) + 1)
 				switch expected {
 				case smokerWithTobacco:
-					smokerWithTobaccoSupplies <- struct{}{}
+					smokerWithTobaccoSupplies.Add(1)
 					a.paper <- struct{}{}
 					a.match <- struct{}{}
 					smokerWithTobaccoExpected++
 				case smokerWithPaper:
-					smokerWithPaperSupplies <- struct{}{}
+					smokerWithPaperSupplies.Add(1)
 					a.tobacco <- struct{}{}
 					a.match <- struct{}{}
 					smokerWithPaperExpected++
 				case smokerWithMatch:
-					smokerWithMatchSupplies <- struct{}{}
+					smokerWithMatchSupplies.Add(1)
 					a.tobacco <- struct{}{}
 					a.paper <- struct{}{}
 					smokerWithMatchExpected++
@@ -150,14 +138,14 @@ func TestCigaretteSmokers(t *testing.T) {
 
 		synctest.Wait()
 
-		if smokerWithTobaccoSmoked.Load() != smokerWithTobaccoExpected {
-			t.Errorf("expected smoker with tobacco to smoke %d cigarettes, but they smoked %d cigarettes", smokerWithTobaccoExpected, smokerWithTobaccoSmoked.Load())
+		if smokerWithTobaccoActual.Load() != smokerWithTobaccoExpected {
+			t.Errorf("expected smoker with tobacco to smoke %d cigarettes, but they smoked %d cigarettes", smokerWithTobaccoExpected, smokerWithTobaccoActual.Load())
 		}
-		if smokerWithPaperSmoked.Load() != smokerWithPaperExpected {
-			t.Errorf("expected smoker with paper to smoke %d cigarettes, but they smoked %d cigarettes", smokerWithPaperExpected, smokerWithPaperSmoked.Load())
+		if smokerWithPaperActual.Load() != smokerWithPaperExpected {
+			t.Errorf("expected smoker with paper to smoke %d cigarettes, but they smoked %d cigarettes", smokerWithPaperExpected, smokerWithPaperActual.Load())
 		}
-		if smokerWithMatchSmoked.Load() != smokerWithMatchExpected {
-			t.Errorf("expected smoker with match to smoke %d cigarettes, but they smoked %d cigarettes", smokerWithMatchExpected, smokerWithMatchSmoked.Load())
+		if smokerWithMatchActual.Load() != smokerWithMatchExpected {
+			t.Errorf("expected smoker with match to smoke %d cigarettes, but they smoked %d cigarettes", smokerWithMatchExpected, smokerWithMatchActual.Load())
 		}
 	})
 }
