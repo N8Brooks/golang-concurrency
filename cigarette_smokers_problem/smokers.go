@@ -11,6 +11,8 @@ type Agent interface {
 	Paper() chan struct{}
 	// Match returns a channel that signals when matches are available.
 	Match() chan struct{}
+	// SignalAgent signals the agent to place two random items on the table.
+	SignalAgent()
 }
 
 type CigaretteSmokers struct {
@@ -70,35 +72,41 @@ func (cs *CigaretteSmokers) Run() {
 	}
 }
 
-func (cs *CigaretteSmokers) SmokerWithTobacco(smoke func()) {
+func (cs *CigaretteSmokers) SmokerWithTobacco(makeCigarette, smoke func()) {
 	for {
 		select {
 		case <-cs.ctx.Done():
 			return
 		case <-cs.tobacco:
 		}
+		makeCigarette()
+		cs.agent.SignalAgent()
 		smoke()
 	}
 }
 
-func (cs *CigaretteSmokers) SmokerWithPaper(smoke func()) {
+func (cs *CigaretteSmokers) SmokerWithPaper(makeCigarette, smoke func()) {
 	for {
 		select {
 		case <-cs.ctx.Done():
 			return
 		case <-cs.paper:
 		}
+		makeCigarette()
+		cs.agent.SignalAgent()
 		smoke()
 	}
 }
 
-func (cs *CigaretteSmokers) SmokerWithMatch(smoke func()) {
+func (cs *CigaretteSmokers) SmokerWithMatch(makeCigarette, smoke func()) {
 	for {
 		select {
 		case <-cs.ctx.Done():
 			return
 		case <-cs.match:
 		}
+		makeCigarette()
+		cs.agent.SignalAgent()
 		smoke()
 	}
 }
