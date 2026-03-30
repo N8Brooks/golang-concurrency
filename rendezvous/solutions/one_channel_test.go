@@ -1,16 +1,14 @@
-//go:build challenge
-
-package rendezvous_test
+package solutions_test
 
 import (
 	"testing"
 
-	"github.com/N8Brooks/golang-concurrency/rendezvous"
+	"github.com/N8Brooks/golang-concurrency/rendezvous/solutions"
 	"github.com/N8Brooks/golang-concurrency/rendezvous/testsuite"
 )
 
 func TestRendezvous(t *testing.T) {
 	testsuite.Run(t, func() testsuite.Rendezvous {
-		return rendezvous.NewRendezvous()
+		return solutions.NewOneChannel()
 	})
 }

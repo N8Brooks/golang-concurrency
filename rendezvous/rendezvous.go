@@ -1,33 +1,19 @@
+//go:build challenge
+
 package rendezvous
 
 import "context"
 
-type Rendezvous struct {
-	handshake chan struct{}
-}
+type Rendezvous struct{}
 
 func NewRendezvous() *Rendezvous {
-	return &Rendezvous{
-		handshake: make(chan struct{}),
-	}
+	return &Rendezvous{}
 }
 
 func (r *Rendezvous) A(ctx context.Context, a1, a2 func()) {
-	a1()
-	select {
-	case <-ctx.Done():
-		return
-	case r.handshake <- struct{}{}:
-	}
-	a2()
+	panic("unimplemented")
 }
 
 func (r *Rendezvous) B(ctx context.Context, b1, b2 func()) {
-	b1()
-	select {
-	case <-ctx.Done():
-		return
-	case <-r.handshake:
-	}
-	b2()
+	panic("unimplemented")
 }
