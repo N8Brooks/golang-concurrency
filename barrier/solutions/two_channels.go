@@ -3,56 +3,47 @@ package solutions
 
 import (
 	"context"
-	"sync"
 )
 
 type TwoChannels struct {
-	parties int
-	count   int
-	mu      sync.Mutex
-	first   chan struct{}
-	second  chan struct{}
+	parties   int
+	arrivals  chan struct{}
+	turnstile chan struct{}
 }
 
 func NewTwoChannels(parties int) *TwoChannels {
 	return &TwoChannels{
-		parties: parties,
-		first:   make(chan struct{}, parties),
-		second:  make(chan struct{}, parties),
+		parties:   parties,
+		arrivals:  make(chan struct{}, parties),
+		turnstile: make(chan struct{}, 1),
 	}
 }
 
 func (b *TwoChannels) Wait(ctx context.Context, phase1, phase2 func()) error {
 	phase1()
 
-	b.mu.Lock()
-	b.count++
-	if b.count == b.parties {
-		for range b.parties {
-			b.first <- struct{}{}
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case b.arrivals <- struct{}{}:
+	}
+
+	if len(b.arrivals) == b.parties {
+		select {
+		case b.turnstile <- struct{}{}:
+		default:
 		}
 	}
-	b.mu.Unlock()
 
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-b.first:
+	case <-b.turnstile:
 	}
-
-	b.mu.Lock()
-	b.count--
-	if b.count == 0 {
-		for range b.parties {
-			b.second <- struct{}{}
-		}
-	}
-	b.mu.Unlock()
 
 	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-b.second:
+	case b.turnstile <- struct{}{}:
+	default:
 	}
 
 	phase2()

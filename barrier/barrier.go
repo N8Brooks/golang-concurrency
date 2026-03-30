@@ -4,7 +4,9 @@
 //
 // In the barrier problem, a fixed number of participants each execute a first
 // phase and a second phase. No participant may begin its second phase until
-// every participant in the round has completed its first phase.
+// every participant has completed its first phase.
+//
+// This challenge is the basic single-use barrier, not a reusable one.
 package barrier
 
 import "context"

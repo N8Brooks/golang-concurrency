@@ -10,16 +10,19 @@ Each participant has two phases:
 The synchronization requirement is:
 
 - each participant must run its first-phase action before its second-phase action
-- no participant may run its second-phase action until every participant in the round has completed its first-phase action
+- no participant may run its second-phase action until every participant has completed its first-phase action
 
 In other words, all participants must wait at the barrier between their first
 and second phases.
+
+This package models the basic single-use barrier. Reusability across multiple
+rounds is not required.
 
 ## Layout
 
 - `barrier.go`: challenge implementation stub
 - `barrier_test.go`: shared tests run against the challenge implementation
-- `testsuite/`: reusable barrier tests and benchmarks
+- `testsuite/`: shared barrier tests and benchmarks
 - `solutions/`: hint implementations that also use the shared testsuite
 
 ## Testing
@@ -41,7 +44,7 @@ Run the hint solutions:
 go test ./barrier/solutions
 ```
 
-This runs the reusable test suite against the provided example solutions.
+This runs the shared test suite against the provided example solutions.
 
 Benchmark the hint solutions:
 

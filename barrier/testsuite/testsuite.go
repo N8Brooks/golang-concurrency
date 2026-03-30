@@ -1,4 +1,4 @@
-// Package testsuite contains reusable behavioral tests for barrier implementations.
+// Package testsuite contains shared behavioral tests for barrier implementations.
 package testsuite
 
 import (
@@ -80,26 +80,6 @@ func Run(t *testing.T, newImpl func(parties int) Barrier) {
 			t.Run(tc.name, func(t *testing.T) {
 				synctest.Test(t, func(t *testing.T) {
 					runOneRound(t, newImpl(defaultParties), t.Context(), tc.order)
-				})
-			})
-		}
-	})
-
-	t.Run("Reusable", func(t *testing.T) {
-		for _, tc := range []struct {
-			name  string
-			order []int
-		}{
-			{name: "Ascending", order: ascending},
-			{name: "Descending", order: descending},
-		} {
-			t.Run(tc.name, func(t *testing.T) {
-				synctest.Test(t, func(t *testing.T) {
-					b := newImpl(defaultParties)
-					ctx := t.Context()
-					for range 5 {
-						runOneRound(t, b, ctx, tc.order)
-					}
 				})
 			})
 		}
