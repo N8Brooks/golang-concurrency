@@ -7,14 +7,14 @@ import (
 	"github.com/N8Brooks/golang-concurrency/rendezvous/testsuite"
 )
 
-func TestOneChannel(t *testing.T) {
+func TestSemaphore(t *testing.T) {
 	testsuite.Run(t, func() testsuite.Rendezvous {
-		return solutions.NewOneChannel()
+		return solutions.NewSemaphore()
 	})
 }
 
-func BenchmarkOneChannel(b *testing.B) {
+func BenchmarkSemaphore(b *testing.B) {
 	testsuite.Benchmark(b, func() testsuite.Rendezvous {
-		return solutions.NewOneChannel()
+		return solutions.NewSemaphore()
 	})
 }

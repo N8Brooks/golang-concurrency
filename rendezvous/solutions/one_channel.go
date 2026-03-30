@@ -1,3 +1,4 @@
+// Package solutions contains implementations of the rendezvous problem.
 package solutions
 
 import "context"

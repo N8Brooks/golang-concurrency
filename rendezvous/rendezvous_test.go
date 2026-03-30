@@ -14,3 +14,9 @@ func TestRendezvous(t *testing.T) {
 		return rendezvous.NewRendezvous()
 	})
 }
+
+func BenchmarkRendezvous(b *testing.B) {
+	testsuite.Benchmark(b, func() testsuite.Rendezvous {
+		return rendezvous.NewRendezvous()
+	})
+}

@@ -7,8 +7,14 @@ import (
 	"github.com/N8Brooks/golang-concurrency/rendezvous/testsuite"
 )
 
-func TestTwoChannel(t *testing.T) {
+func TestTwoChannels(t *testing.T) {
 	testsuite.Run(t, func() testsuite.Rendezvous {
-		return solutions.NewTwoChannel()
+		return solutions.NewTwoChannels()
+	})
+}
+
+func BenchmarkTwoChannels(b *testing.B) {
+	testsuite.Benchmark(b, func() testsuite.Rendezvous {
+		return solutions.NewTwoChannels()
 	})
 }

@@ -1,20 +1,21 @@
+// Package solutions contains implementations of the rendezvous problem.
 package solutions
 
 import "context"
 
-type TwoChannel struct {
+type TwoChannels struct {
 	aArrived chan struct{}
 	bArrived chan struct{}
 }
 
-func NewTwoChannel() *TwoChannel {
-	return &TwoChannel{
+func NewTwoChannels() *TwoChannels {
+	return &TwoChannels{
 		aArrived: make(chan struct{}, 1),
 		bArrived: make(chan struct{}, 1),
 	}
 }
 
-func (r *TwoChannel) A(ctx context.Context, a1, a2 func()) {
+func (r *TwoChannels) A(ctx context.Context, a1, a2 func()) {
 	a1()
 	select {
 	case r.aArrived <- struct{}{}:
@@ -29,7 +30,7 @@ func (r *TwoChannel) A(ctx context.Context, a1, a2 func()) {
 	a2()
 }
 
-func (r *TwoChannel) B(ctx context.Context, b1, b2 func()) {
+func (r *TwoChannels) B(ctx context.Context, b1, b2 func()) {
 	b1()
 	select {
 	case r.bArrived <- struct{}{}:
