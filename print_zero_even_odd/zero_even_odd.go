@@ -1,45 +1,30 @@
+//go:build challenge
+
+// Package zeroevenodd contains the challenge version of the print zero even
+// odd problem.
+//
+// Three goroutines cooperate to print the sequence `010203...0n`. The zero
+// goroutine prints `0` before every number, the odd goroutine prints odd
+// numbers in increasing order, and the even goroutine prints even numbers in
+// increasing order.
 package zeroevenodd
 
 type ZeroEvenOdd struct {
-	n    int
-	zero chan struct{}
-	even chan struct{}
-	odd  chan struct{}
+	n int
 }
 
-func NewZeroEvenOdd(n int) ZeroEvenOdd {
-	z := ZeroEvenOdd{n: n}
-	z.zero = make(chan struct{}, 1)
-	z.even = make(chan struct{})
-	z.odd = make(chan struct{})
-	return z
+func NewZeroEvenOdd(n int) *ZeroEvenOdd {
+	return &ZeroEvenOdd{n: n}
 }
 
 func (z *ZeroEvenOdd) Zero(printNumber func(int)) {
-	z.zero <- struct{}{}
-	for i := 1; i <= z.n; i++ {
-		<-z.zero
-		printNumber(0)
-		if i&1 == 1 {
-			z.odd <- struct{}{}
-		} else {
-			z.even <- struct{}{}
-		}
-	}
+	panic("unimplemented")
 }
 
 func (z *ZeroEvenOdd) Even(printNumber func(int)) {
-	for i := 2; i <= z.n; i += 2 {
-		<-z.even
-		printNumber(i)
-		z.zero <- struct{}{}
-	}
+	panic("unimplemented")
 }
 
 func (z *ZeroEvenOdd) Odd(printNumber func(int)) {
-	for i := 1; i <= z.n; i += 2 {
-		<-z.odd
-		printNumber(i)
-		z.zero <- struct{}{}
-	}
+	panic("unimplemented")
 }
