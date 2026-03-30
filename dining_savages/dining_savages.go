@@ -2,52 +2,54 @@ package diningsavages
 
 import (
 	"context"
+
+	"golang.org/x/sync/semaphore"
 )
 
 type DiningSavages struct {
-	servings chan chan struct{}
+	servings int
+	mutex    *semaphore.Weighted
+	emptyPot *semaphore.Weighted
+	fullPot  *semaphore.Weighted
 }
 
 func NewDiningSavages() *DiningSavages {
-	return &DiningSavages{
-		servings: make(chan chan struct{}),
+	ds := &DiningSavages{
+		mutex:    semaphore.NewWeighted(1), // Mutex to protect access to the pot
+		emptyPot: semaphore.NewWeighted(1), // Semaphore to signal the cook to fill the pot
+		fullPot:  semaphore.NewWeighted(1), // Semaphore to signal that the pot is full
 	}
+	ctx := context.Background()
+	ds.emptyPot.Acquire(ctx, 1) // Start with the empty pot semaphore acquired
+	ds.fullPot.Acquire(ctx, 1)  // Start with the full pot semaphore acquired
+	return ds
 }
 
 func (ds *DiningSavages) Savage(ctx context.Context, getServingFromPot, eat func()) {
 	for {
-		select {
-		case <-ctx.Done():
+		if ds.mutex.Acquire(ctx, 1) != nil {
 			return
-		case consumed := <-ds.servings:
-			getServingFromPot()
-			eat()
-			select {
-			case <-ctx.Done():
+		}
+		if ds.servings == 0 {
+			ds.emptyPot.Release(1) // Signal the cook to fill the pot
+			if ds.fullPot.Acquire(ctx, 1) != nil {
+				ds.mutex.Release(1) // Release the mutex before returning
 				return
-			case consumed <- struct{}{}:
 			}
 		}
+		ds.servings--
+		getServingFromPot() // Get a serving from the pot
+		ds.mutex.Release(1) // Release the mutex
+		eat()               // Eat the serving
 	}
 }
 
 func (ds *DiningSavages) Cook(ctx context.Context, fillPot func() int) {
 	for {
-		numServings := fillPot()
-		consumed := make(chan struct{}, numServings)
-		for range numServings {
-			select {
-			case <-ctx.Done():
-				return
-			case ds.servings <- consumed:
-			}
+		if ds.emptyPot.Acquire(ctx, 1) != nil {
+			return
 		}
-		for range numServings {
-			select {
-			case <-ctx.Done():
-				return
-			case <-consumed:
-			}
-		}
+		ds.servings = fillPot() // Fill the pot with new servings
+		ds.fullPot.Release(1)   // Signal that the pot is full
 	}
 }

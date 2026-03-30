@@ -79,3 +79,45 @@ func TestDiningSavages(t *testing.T) {
 		synctest.Wait()
 	})
 }
+
+func TestDiningSavagesCancelWhileWaitingForCook(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+
+		ds := diningsavages.NewDiningSavages()
+
+		var gotServing atomic.Int64
+		var ate atomic.Int64
+		exited := make(chan struct{})
+
+		go func() {
+			ds.Savage(ctx, func() {
+				gotServing.Add(1)
+			}, func() {
+				ate.Add(1)
+			})
+			close(exited)
+		}()
+
+		// Let the savage reach the empty-pot path and block waiting for the cook.
+		synctest.Wait()
+
+		cancel()
+		synctest.Wait()
+
+		select {
+		case <-exited:
+		default:
+			t.Fatal("savage did not exit after cancellation while waiting for the cook")
+		}
+
+		if gotServing.Load() != 0 {
+			t.Fatalf("gotServing = %d, want 0", gotServing.Load())
+		}
+		if ate.Load() != 0 {
+			t.Fatalf("ate = %d, want 0", ate.Load())
+		}
+	})
+}
