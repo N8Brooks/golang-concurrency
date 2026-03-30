@@ -1,15 +1,20 @@
-package webcrawlermultithreaded
+// Package solutions contains implementations of the web crawler problem.
+package solutions
 
 import (
 	"net/url"
 	"sync"
+
+	webcrawler "github.com/N8Brooks/golang-concurrency/web_crawler"
 )
 
-type HtmlParser interface {
-	GetUrls(url string) []string
+type WaitGroup struct{}
+
+func NewWaitGroup() *WaitGroup {
+	return &WaitGroup{}
 }
 
-func Crawl(startURL string, htmlParser HtmlParser) []string {
+func (c *WaitGroup) Crawl(startURL string, htmlParser webcrawler.HTMLParser) []string {
 	startHost := hostName(startURL)
 
 	seen := map[string]struct{}{
@@ -24,7 +29,7 @@ func Crawl(startURL string, htmlParser HtmlParser) []string {
 	visit = func(current string) {
 		defer wg.Done()
 
-		for _, next := range htmlParser.GetUrls(current) {
+		for _, next := range htmlParser.GetURLs(current) {
 			if hostName(next) != startHost {
 				continue
 			}
@@ -37,8 +42,8 @@ func Crawl(startURL string, htmlParser HtmlParser) []string {
 			seen[next] = struct{}{}
 			urls = append(urls, next)
 			mu.Unlock()
-			wg.Add(1)
 
+			wg.Add(1)
 			go visit(next)
 		}
 	}
