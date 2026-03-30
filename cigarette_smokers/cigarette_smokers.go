@@ -1,110 +1,42 @@
+//go:build challenge
+
+// Package cigarettesmokers contains the challenge version of the cigarette
+// smokers problem.
+//
+// An agent places two ingredients on the table, and exactly the smoker with
+// the complementary ingredient should proceed. The agent interface is fixed, so
+// the coordination logic belongs entirely to the smokers side.
 package cigarettesmokers
 
-import (
-	"context"
-)
+import "context"
 
 type Agent interface {
-	// Tobacco returns a channel that signals when tobacco is available available.
 	Tobacco() chan struct{}
-	// Paper returns a channel that signals when paper is available.
 	Paper() chan struct{}
-	// Match returns a channel that signals when matches are available.
 	Match() chan struct{}
-	// Signal signals the agent to place two random items on the table.
 	Signal()
 }
 
 type CigaretteSmokers struct {
-	agent   Agent
-	tobacco chan struct{}
-	paper   chan struct{}
-	match   chan struct{}
+	agent Agent
 }
 
-func NewCigaretteSmokers(a Agent) *CigaretteSmokers {
-	cs := CigaretteSmokers{
-		agent:   a,
-		tobacco: make(chan struct{}),
-		paper:   make(chan struct{}),
-		match:   make(chan struct{}),
-	}
-	return &cs
+func NewCigaretteSmokers(agent Agent) *CigaretteSmokers {
+	return &CigaretteSmokers{agent: agent}
 }
 
 func (cs *CigaretteSmokers) Run(ctx context.Context) {
-	for {
-		var isTobacco, isPaper, isMatch bool
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-cs.agent.Tobacco():
-			isTobacco = true
-		case <-cs.agent.Paper():
-			isPaper = true
-		case <-cs.agent.Match():
-			isMatch = true
-		}
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-cs.agent.Tobacco():
-			isTobacco = true
-		case <-cs.agent.Paper():
-			isPaper = true
-		case <-cs.agent.Match():
-			isMatch = true
-		}
-
-		if isPaper && isMatch {
-			cs.tobacco <- struct{}{}
-		} else if isTobacco && isMatch {
-			cs.paper <- struct{}{}
-		} else if isTobacco && isPaper {
-			cs.match <- struct{}{}
-		} else {
-			panic("unexpected state: exactly two of tobacco, paper, and match should be true")
-		}
-	}
+	panic("unimplemented")
 }
 
 func (cs *CigaretteSmokers) SmokerWithTobacco(ctx context.Context, makeCigarette, smoke func()) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-cs.tobacco:
-		}
-		makeCigarette()
-		cs.agent.Signal()
-		smoke()
-	}
+	panic("unimplemented")
 }
 
 func (cs *CigaretteSmokers) SmokerWithPaper(ctx context.Context, makeCigarette, smoke func()) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-cs.paper:
-		}
-		makeCigarette()
-		cs.agent.Signal()
-		smoke()
-	}
+	panic("unimplemented")
 }
 
 func (cs *CigaretteSmokers) SmokerWithMatch(ctx context.Context, makeCigarette, smoke func()) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-cs.match:
-		}
-		makeCigarette()
-		cs.agent.Signal()
-		smoke()
-	}
+	panic("unimplemented")
 }
