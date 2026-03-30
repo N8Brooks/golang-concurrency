@@ -5,27 +5,25 @@ import (
 )
 
 type Agent interface {
-	// Tobacco returns a channel that signals when tobacco is available.
+	// Tobacco returns a channel that signals when tobacco is available available.
 	Tobacco() chan struct{}
 	// Paper returns a channel that signals when paper is available.
 	Paper() chan struct{}
 	// Match returns a channel that signals when matches are available.
 	Match() chan struct{}
-	// SignalAgent signals the agent to place two random items on the table.
-	SignalAgent()
+	// Signal signals the agent to place two random items on the table.
+	Signal()
 }
 
 type CigaretteSmokers struct {
-	ctx     context.Context
 	agent   Agent
 	tobacco chan struct{}
 	paper   chan struct{}
 	match   chan struct{}
 }
 
-func NewCigaretteSmokers(ctx context.Context, a Agent) *CigaretteSmokers {
+func NewCigaretteSmokers(a Agent) *CigaretteSmokers {
 	cs := CigaretteSmokers{
-		ctx:     ctx,
 		agent:   a,
 		tobacco: make(chan struct{}),
 		paper:   make(chan struct{}),
@@ -34,12 +32,12 @@ func NewCigaretteSmokers(ctx context.Context, a Agent) *CigaretteSmokers {
 	return &cs
 }
 
-func (cs *CigaretteSmokers) Run() {
+func (cs *CigaretteSmokers) Run(ctx context.Context) {
 	for {
 		var isTobacco, isPaper, isMatch bool
 
 		select {
-		case <-cs.ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-cs.agent.Tobacco():
 			isTobacco = true
@@ -50,7 +48,7 @@ func (cs *CigaretteSmokers) Run() {
 		}
 
 		select {
-		case <-cs.ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-cs.agent.Tobacco():
 			isTobacco = true
@@ -72,41 +70,41 @@ func (cs *CigaretteSmokers) Run() {
 	}
 }
 
-func (cs *CigaretteSmokers) SmokerWithTobacco(makeCigarette, smoke func()) {
+func (cs *CigaretteSmokers) SmokerWithTobacco(ctx context.Context, makeCigarette, smoke func()) {
 	for {
 		select {
-		case <-cs.ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-cs.tobacco:
 		}
 		makeCigarette()
-		cs.agent.SignalAgent()
+		cs.agent.Signal()
 		smoke()
 	}
 }
 
-func (cs *CigaretteSmokers) SmokerWithPaper(makeCigarette, smoke func()) {
+func (cs *CigaretteSmokers) SmokerWithPaper(ctx context.Context, makeCigarette, smoke func()) {
 	for {
 		select {
-		case <-cs.ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-cs.paper:
 		}
 		makeCigarette()
-		cs.agent.SignalAgent()
+		cs.agent.Signal()
 		smoke()
 	}
 }
 
-func (cs *CigaretteSmokers) SmokerWithMatch(makeCigarette, smoke func()) {
+func (cs *CigaretteSmokers) SmokerWithMatch(ctx context.Context, makeCigarette, smoke func()) {
 	for {
 		select {
-		case <-cs.ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-cs.match:
 		}
 		makeCigarette()
-		cs.agent.SignalAgent()
+		cs.agent.Signal()
 		smoke()
 	}
 }

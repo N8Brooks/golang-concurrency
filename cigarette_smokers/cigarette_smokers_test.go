@@ -6,7 +6,7 @@ import (
 	"testing"
 	"testing/synctest"
 
-	cigarette_smokers_problem "github.com/N8Brooks/golang-concurrency/cigarette_smokers_problem"
+	cigarette_smokers_problem "github.com/N8Brooks/golang-concurrency/cigarette_smokers"
 )
 
 type smokerID int
@@ -47,7 +47,7 @@ func (a *agent) Match() chan struct{} {
 	return a.match
 }
 
-func (a *agent) SignalAgent() {
+func (a *agent) Signal() {
 	a.agent <- struct{}{}
 }
 
@@ -56,10 +56,11 @@ func TestCigaretteSmokers(t *testing.T) {
 	t.Parallel()
 	synctest.Test(t, func(t *testing.T) {
 		a := newAgent()
-		cs := cigarette_smokers_problem.NewCigaretteSmokers(t.Context(), a)
+		ctx := t.Context()
+		cs := cigarette_smokers_problem.NewCigaretteSmokers(a)
 
 		var smokerWithTobaccoSupplies, smokerWithTobaccoCigarettes, smokerWithTobaccoActual atomic.Int64
-		go cs.SmokerWithTobacco(func() {
+		go cs.SmokerWithTobacco(ctx, func() {
 			if smokerWithTobaccoSupplies.Add(-1) < 0 {
 				t.Error("smoker with tobacco could not make a cigarette")
 			} else {
@@ -76,7 +77,7 @@ func TestCigaretteSmokers(t *testing.T) {
 		})
 
 		var smokerWithPaperSupplies, smokerWithPaperCigarettes, smokerWithPaperActual atomic.Int64
-		go cs.SmokerWithPaper(func() {
+		go cs.SmokerWithPaper(ctx, func() {
 			if smokerWithPaperSupplies.Add(-1) < 0 {
 				t.Error("smoker with paper could not make a cigarette")
 			} else {
@@ -93,7 +94,7 @@ func TestCigaretteSmokers(t *testing.T) {
 		})
 
 		var smokerWithMatchSupplies, smokerWithMatchCigarettes, smokerWithMatchActual atomic.Int64
-		go cs.SmokerWithMatch(func() {
+		go cs.SmokerWithMatch(ctx, func() {
 			if smokerWithMatchSupplies.Add(-1) < 0 {
 				t.Error("smoker with match could not make a cigarette")
 			} else {
@@ -109,7 +110,7 @@ func TestCigaretteSmokers(t *testing.T) {
 			smokerWithMatchActual.Add(1)
 		})
 
-		go cs.Run()
+		go cs.Run(ctx)
 
 		var smokerWithTobaccoExpected, smokerWithPaperExpected, smokerWithMatchExpected int64
 		go func() {
