@@ -1,48 +1,48 @@
 package solutions
 
-import "context"
+import (
+	"context"
 
-const numPhilosophers = 5
+	"golang.org/x/sync/semaphore"
+)
 
 type Footman struct {
-	footman *semaphore
-	forks   [numPhilosophers]*semaphore
+	footman *semaphore.Weighted
+	forks   [5]*semaphore.Weighted
 }
 
 func NewFootman() *Footman {
-	dp := &Footman{
-		footman: newSemaphore(numPhilosophers - 1),
+	footman := semaphore.NewWeighted(4)
+	forks := [5]*semaphore.Weighted{}
+	for i := range 5 {
+		forks[i] = semaphore.NewWeighted(1)
 	}
-	for i := range numPhilosophers {
-		dp.forks[i] = newSemaphore(1)
-	}
-	return dp
+	return &Footman{footman, forks}
 }
 
-func (dp *Footman) Dine(ctx context.Context, philosopher int, think, eat func()) error {
+func (dp *Footman) Dine(ctx context.Context, philosopher int, think, eat func()) {
 	think()
 
-	if err := dp.footman.Wait(ctx); err != nil {
-		return err
+	if err := dp.footman.Acquire(ctx, 1); err != nil {
+		return
 	}
 
 	right := philosopher
-	left := (philosopher + 1) % numPhilosophers
+	left := (philosopher + 1) % 5
 
-	if err := dp.forks[right].Wait(ctx); err != nil {
-		dp.footman.Signal()
-		return err
+	if err := dp.forks[right].Acquire(ctx, 1); err != nil {
+		dp.footman.Release(1)
+		return
 	}
-	if err := dp.forks[left].Wait(ctx); err != nil {
-		dp.forks[right].Signal()
-		dp.footman.Signal()
-		return err
+	if err := dp.forks[left].Acquire(ctx, 1); err != nil {
+		dp.forks[right].Release(1)
+		dp.footman.Release(1)
+		return
 	}
 
 	eat()
 
-	dp.forks[left].Signal()
-	dp.forks[right].Signal()
-	dp.footman.Signal()
-	return nil
+	dp.forks[left].Release(1)
+	dp.forks[right].Release(1)
+	dp.footman.Release(1)
 }

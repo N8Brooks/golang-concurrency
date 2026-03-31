@@ -11,12 +11,40 @@ package dining_philosophers
 
 import "context"
 
-type DiningPhilosophers struct{}
-
-func NewDiningPhilosophers() *DiningPhilosophers {
-	return &DiningPhilosophers{}
+type DiningPhilosophers struct {
+	forks [5]chan struct{}
 }
 
-func (dp *DiningPhilosophers) Dine(ctx context.Context, philosopher int, think, eat func()) error {
-	panic("unimplemented")
+func NewDiningPhilosophers() *DiningPhilosophers {
+	forks := [5]chan struct{}{}
+	for i := range forks {
+		forks[i] = make(chan struct{}, 1)
+		forks[i] <- struct{}{}
+	}
+	return &DiningPhilosophers{forks}
+}
+
+func (dp *DiningPhilosophers) Dine(ctx context.Context, i int, think, eat func()) {
+	think()
+	dp.getForks(i)
+	eat()
+	dp.putForks(i)
+}
+
+func (dp *DiningPhilosophers) getForks(i int) {
+	<-dp.forks[left(i)]
+	<-dp.forks[right(i)]
+}
+
+func (dp *DiningPhilosophers) putForks(i int) {
+	dp.forks[left(i)] <- struct{}{}
+	dp.forks[right(i)] <- struct{}{}
+}
+
+func left(i int) int {
+	return i
+}
+
+func right(i int) int {
+	return (i + 1) % 5
 }

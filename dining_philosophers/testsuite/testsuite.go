@@ -13,7 +13,7 @@ import (
 const numPhilosophers = 5
 
 type DiningPhilosophers interface {
-	Dine(ctx context.Context, philosopher int, think, eat func()) error
+	Dine(ctx context.Context, philosopher int, think, eat func())
 }
 
 type philosopherRun struct {

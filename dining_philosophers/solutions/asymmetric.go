@@ -1,39 +1,42 @@
 package solutions
 
-import "context"
+import (
+	"context"
+
+	"golang.org/x/sync/semaphore"
+)
 
 type Asymmetric struct {
-	forks [numPhilosophers]*semaphore
+	forks [5]*semaphore.Weighted
 }
 
 func NewAsymmetric() *Asymmetric {
-	dp := &Asymmetric{}
-	for i := range numPhilosophers {
-		dp.forks[i] = newSemaphore(1)
+	forks := [5]*semaphore.Weighted{}
+	for i := range 5 {
+		forks[i] = semaphore.NewWeighted(1)
 	}
-	return dp
+	return &Asymmetric{forks}
 }
 
-func (dp *Asymmetric) Dine(ctx context.Context, philosopher int, think, eat func()) error {
+func (dp *Asymmetric) Dine(ctx context.Context, philosopher int, think, eat func()) {
 	think()
 
 	first := philosopher
-	second := (philosopher + 1) % numPhilosophers
+	second := (philosopher + 1) % 5
 	if philosopher == 0 {
 		first, second = second, first
 	}
 
-	if err := dp.forks[first].Wait(ctx); err != nil {
-		return err
+	if err := dp.forks[first].Acquire(ctx, 1); err != nil {
+		return
 	}
-	if err := dp.forks[second].Wait(ctx); err != nil {
-		dp.forks[first].Signal()
-		return err
+	if err := dp.forks[second].Acquire(ctx, 1); err != nil {
+		dp.forks[first].Release(1)
+		return
 	}
 
 	eat()
 
-	dp.forks[second].Signal()
-	dp.forks[first].Signal()
-	return nil
+	dp.forks[second].Release(1)
+	dp.forks[first].Release(1)
 }
