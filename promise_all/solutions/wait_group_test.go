@@ -8,9 +8,9 @@ import (
 )
 
 func TestWaitGroup(t *testing.T) {
-	testsuite.Run(t, solutions.PromiseAll[int])
+	testsuite.Run(t, solutions.PromiseAllWaitGroup[int])
 }
 
 func BenchmarkWaitGroup(b *testing.B) {
-	testsuite.Benchmark(b, solutions.PromiseAll[int])
+	testsuite.Benchmark(b, solutions.PromiseAllWaitGroup[int])
 }
