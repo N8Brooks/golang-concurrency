@@ -2,27 +2,32 @@
 package solutions
 
 import (
+	"context"
 	"sync"
 
 	"github.com/N8Brooks/golang-concurrency/internal/promise"
 )
 
-func PromiseAll[T any](functions []func() promise.Promiser[T]) promise.Promiser[[]T] {
+func PromiseAllWaitGroup[T any](ctx context.Context, functions []func(context.Context) promise.Promiser[T]) promise.Promiser[[]T] {
 	return promise.New(func(resolve func([]T), reject func(error)) {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+
 		var wg sync.WaitGroup
 		wg.Add(len(functions))
 
 		values := make([]T, len(functions))
 
 		for i, fn := range functions {
-			go func(i int, fn func() promise.Promiser[T]) {
+			go func() {
 				defer wg.Done()
-				if res, err := fn().Result(); err != nil {
+				if res, err := fn(ctx).ResultContext(ctx); err != nil {
+					cancel()
 					reject(err)
 				} else {
 					values[i] = res
 				}
-			}(i, fn)
+			}()
 		}
 
 		wg.Wait()
