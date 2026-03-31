@@ -67,27 +67,36 @@ This repository collects concurrency exercises in a shared template format:
 - 7.6 Dining Hall problem: [`dining_hall`](./dining_hall)
 - 7.6 Extended Dining Hall problem: [`extended_dining_hall`](./extended_dining_hall)
 
+## LeetCode Concurrency Problems
+
+The following LeetCode concurrency problems are also represented in this repo:
+
+- [`bounded_blocking_queue`](./bounded_blocking_queue)
+- [`fizz_buzz_multithreaded`](./fizz_buzz_multithreaded)
+- [`print_foobar_alternately`](./print_foobar_alternately)
+- [`print_in_order`](./print_in_order)
+- [`print_zero_even_odd`](./print_zero_even_odd)
+- [`traffic_light`](./traffic_light)
+- [`web_crawler`](./web_crawler)
+
 ## LeetCode Async Problems
 
 The following LeetCode-derived async/concurrency problems now follow the same
 template architecture:
 
-- `promise_all`
-- `add_two_promises`
-- `promise_time_limit`
-- `promise_pool`
-- `debounce`
-- `cache_with_time_limit`
-- `promise_all_settled`
-
-## LeetCode Concurrency Problems
-
-The following LeetCode concurrency problems are also represented in this repo:
-
-- `bounded_blocking_queue`
-- `fizz_buzz_multithreaded`
-- `print_foobar_alternately`
-- `print_in_order`
-- `print_zero_even_odd`
-- `traffic_light`
-- `web_crawler`
+- [`promise_all`](./promise_all)
+- [`add_two_promises`](./add_two_promises)
+- [`promise_time_limit`](./promise_time_limit)
+- [`promise_pool`](./promise_pool)
+- [`sleep`](./sleep)
+- [`debounce`](./debounce)
+- [`throttle`](./throttle)
+- [`cache_with_time_limit`](./cache_with_time_limit)
+- [`event_emitter`](./event_emitter)
+- [`timeout_cancellation`](./timeout_cancellation)
+- [`interval_cancellation`](./interval_cancellation)
+- [`query_batching`](./query_batching)
+- [`promisify`](./promisify)
+- [`custom_interval`](./custom_interval)
+- [`delay_all`](./delay_all)
+- [`promise_all_settled`](./promise_all_settled)
