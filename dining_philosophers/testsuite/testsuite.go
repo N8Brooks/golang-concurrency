@@ -3,14 +3,12 @@ package testsuite
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
+	"time"
 )
-
-const numPhilosophers = 5
 
 type DiningPhilosophers interface {
 	Dine(ctx context.Context, philosopher int, think, eat func())
@@ -20,7 +18,7 @@ type philosopherRun struct {
 	thought chan struct{}
 	entered chan struct{}
 	release chan struct{}
-	done    chan error
+	done    chan struct{}
 }
 
 func startPhilosopher(dp DiningPhilosophers, ctx context.Context, philosopher int) philosopherRun {
@@ -28,16 +26,17 @@ func startPhilosopher(dp DiningPhilosophers, ctx context.Context, philosopher in
 		thought: make(chan struct{}),
 		entered: make(chan struct{}),
 		release: make(chan struct{}),
-		done:    make(chan error, 1),
+		done:    make(chan struct{}),
 	}
 
 	go func() {
-		run.done <- dp.Dine(ctx, philosopher, func() {
+		dp.Dine(ctx, philosopher, func() {
 			close(run.thought)
 		}, func() {
 			close(run.entered)
 			<-run.release
 		})
+		close(run.done)
 	}()
 
 	return run
@@ -63,24 +62,21 @@ func requireOpen(t *testing.T, ch <-chan struct{}, message string) {
 	}
 }
 
-func requirePending(t *testing.T, done <-chan error, message string) {
+func requirePending(t *testing.T, done <-chan struct{}, message string) {
 	t.Helper()
 
 	select {
-	case err := <-done:
-		t.Fatalf("%s: returned %v", message, err)
+	case <-done:
+		t.Fatal(message)
 	default:
 	}
 }
 
-func requireSuccess(t *testing.T, done <-chan error, message string) {
+func requireSuccess(t *testing.T, done <-chan struct{}, message string) {
 	t.Helper()
 
 	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatalf("%s: %v", message, err)
-		}
+	case <-done:
 	default:
 		t.Fatal(message)
 	}
@@ -89,25 +85,25 @@ func requireSuccess(t *testing.T, done <-chan error, message string) {
 func runHungryWave(t *testing.T, dp DiningPhilosophers, ctx context.Context) {
 	t.Helper()
 
-	runs := make([]philosopherRun, numPhilosophers)
-	released := make([]bool, numPhilosophers)
-	finished := make([]bool, numPhilosophers)
+	runs := make([]philosopherRun, 5)
+	released := make([]bool, 5)
+	finished := make([]bool, 5)
 
-	for i := range numPhilosophers {
+	for i := range 5 {
 		runs[i] = startPhilosopher(dp, ctx, i)
 	}
 
 	synctest.Wait()
 
-	for i := range numPhilosophers {
+	for i := range 5 {
 		requireClosed(t, runs[i].thought, fmt.Sprintf("philosopher %d did not think", i))
 	}
 
 	completed := 0
-	for completed < numPhilosophers {
+	for completed < 5 {
 		progress := false
 
-		for i := range numPhilosophers {
+		for i := range 5 {
 			if released[i] {
 				continue
 			}
@@ -123,16 +119,13 @@ func runHungryWave(t *testing.T, dp DiningPhilosophers, ctx context.Context) {
 
 		synctest.Wait()
 
-		for i := range numPhilosophers {
+		for i := range 5 {
 			if finished[i] {
 				continue
 			}
 
 			select {
-			case err := <-runs[i].done:
-				if err != nil {
-					t.Fatalf("philosopher %d returned %v", i, err)
-				}
+			case <-runs[i].done:
 				finished[i] = true
 				completed++
 				progress = true
@@ -140,7 +133,7 @@ func runHungryWave(t *testing.T, dp DiningPhilosophers, ctx context.Context) {
 			}
 		}
 
-		if completed < numPhilosophers && !progress {
+		if completed < 5 && !progress {
 			t.Fatal("philosophers deadlocked")
 		}
 	}
@@ -245,10 +238,7 @@ func Run(t *testing.T, newImpl func() DiningPhilosophers) {
 			synctest.Wait()
 
 			select {
-			case err := <-second.done:
-				if !errors.Is(err, context.Canceled) {
-					t.Fatalf("philosopher 1 returned %v, want context.Canceled", err)
-				}
+			case <-second.done:
 			default:
 				t.Fatal("philosopher 1 did not exit after cancellation")
 			}
@@ -266,18 +256,19 @@ func Run(t *testing.T, newImpl func() DiningPhilosophers) {
 func Benchmark(b *testing.B, newImpl func() DiningPhilosophers) {
 	b.Helper()
 	b.ReportAllocs()
+	empty := func() {}
 
 	b.Run("Contended", func(b *testing.B) {
-		dp := newImpl()
 		ctx := b.Context()
+		dp := newImpl()
 		var next atomic.Uint32
 
 		b.RunParallel(func(pb *testing.PB) {
+			philosopher := int(next.Add(1)-1) % 5
 			for pb.Next() {
-				philosopher := int(next.Add(1)-1) % numPhilosophers
-				if err := dp.Dine(ctx, philosopher, func() {}, func() {}); err != nil {
-					b.Fatalf("Dine returned %v", err)
-				}
+				ctx, cancel := context.WithTimeout(ctx, 10*time.Millisecond)
+				dp.Dine(ctx, philosopher, empty, empty)
+				cancel()
 			}
 		})
 	})

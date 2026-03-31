@@ -16,16 +16,15 @@ In this package, a dining philosophers implementation must:
 - ensure neighboring philosophers never eat at the same time
 - avoid deadlock when all five philosophers become hungry together
 - allow non-neighboring philosophers to eat concurrently
-- allow a waiting philosopher to stop waiting if its context is canceled
+- stop a waiting philosopher from making progress if its context is canceled
 - be reusable across many dining rounds
 
-The provided hint solutions mirror the textbook's deadlock-free approaches:
+The provided hint solutions mirror several textbook approaches:
 
 - `footman.go`: limits the table to four philosophers at a time
 - `asymmetric.go`: makes one philosopher pick up forks in the opposite order
-
-Tanenbaum's well-known state-machine solution is intentionally not included as
-a hint here because it is deadlock-free but can still starve a philosopher.
+- `tanenbaum.go`: uses the classic state-machine solution; it is deadlock-free
+  but can still starve a philosopher
 
 ## Layout
 
