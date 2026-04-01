@@ -2,19 +2,30 @@
 
 The producer-consumer problem has two kinds of participants:
 
-1. producers, which wait for events and add them to a shared buffer
-2. consumers, which remove buffered events and process them
+1. producers, which wait for events and publish them
+2. consumers, which receive published events and process them
 
 The synchronization requirements are:
 
-- access to the buffer must be exclusive while an item is added or removed
 - a consumer must block while the buffer is empty
 - `waitForEvent` and `process` should run outside the critical section
 - a waiting consumer should return early if its context is canceled
+- a canceled waiting consumer should not consume a future event
+- the implementation should be reusable across many producer/consumer handoffs
 
-In other words, producers and consumers coordinate through a shared buffer,
-but they should not hold the buffer lock while waiting for new work or while
-processing an item.
+Implementations in this repo may use either:
+
+- a shared buffer protected by synchronization
+- or a direct rendezvous/handoff between producers and consumers
+
+The shared tests intentionally validate the synchronization contract rather than
+requiring a specific internal queueing strategy.
+
+The provided hint solutions illustrate three different approaches:
+
+- `channel.go`: direct handoff via an unbuffered channel
+- `sync_cond.go`: explicit shared buffer with `sync.Cond`
+- `semaphore.go`: explicit shared buffer with semaphores
 
 ## Layout
 

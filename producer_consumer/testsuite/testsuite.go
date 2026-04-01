@@ -3,7 +3,6 @@ package testsuite
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"sync/atomic"
 	"testing"
@@ -16,8 +15,8 @@ const (
 )
 
 type ProducerConsumer interface {
-	Produce(ctx context.Context, waitForEvent func() int) error
-	Consume(ctx context.Context, process func(int)) error
+	Produce(ctx context.Context, waitForEvent func() int)
+	Consume(ctx context.Context, process func(int))
 }
 
 func runOneShot(t *testing.T, pc ProducerConsumer, ctx context.Context, consumerFirst bool) {
@@ -26,21 +25,21 @@ func runOneShot(t *testing.T, pc ProducerConsumer, ctx context.Context, consumer
 	var state atomic.Uint32
 	const expectedEvent = 7
 
-	producerDone := make(chan error, 1)
-	consumerDone := make(chan error, 1)
+	producerDone := make(chan struct{}, 1)
+	consumerDone := make(chan struct{}, 1)
 
 	runProducer := func() {
-		producerDone <- pc.Produce(ctx, func() int {
-			if state.Load()&eventProcessedBit != 0 {
+		pc.Produce(ctx, func() int {
+			if state.Or(eventCreatedBit)&eventProcessedBit != 0 {
 				t.Error("event creation ran after processing completed")
 			}
-			state.Or(eventCreatedBit)
 			return expectedEvent
 		})
+		producerDone <- struct{}{}
 	}
 
 	runConsumer := func() {
-		consumerDone <- pc.Consume(ctx, func(event int) {
+		pc.Consume(ctx, func(event int) {
 			if event != expectedEvent {
 				t.Errorf("consumer got %d, want %d", event, expectedEvent)
 			}
@@ -48,6 +47,7 @@ func runOneShot(t *testing.T, pc ProducerConsumer, ctx context.Context, consumer
 				t.Error("processing ran before the producer created an event")
 			}
 		})
+		consumerDone <- struct{}{}
 	}
 
 	if consumerFirst {
@@ -62,15 +62,12 @@ func runOneShot(t *testing.T, pc ProducerConsumer, ctx context.Context, consumer
 
 		go runProducer()
 	} else {
-		if err := pc.Produce(ctx, func() int {
-			if state.Load()&eventProcessedBit != 0 {
+		go pc.Produce(ctx, func() int {
+			if state.Or(eventCreatedBit)&eventProcessedBit != 0 {
 				t.Error("event creation ran after processing completed")
 			}
-			state.Or(eventCreatedBit)
 			return expectedEvent
-		}); err != nil {
-			t.Fatalf("producer returned %v", err)
-		}
+		})
 
 		go runConsumer()
 	}
@@ -79,20 +76,14 @@ func runOneShot(t *testing.T, pc ProducerConsumer, ctx context.Context, consumer
 
 	if consumerFirst {
 		select {
-		case err := <-producerDone:
-			if err != nil {
-				t.Fatalf("producer returned %v", err)
-			}
+		case <-producerDone:
 		default:
 			t.Fatal("producer did not complete")
 		}
 	}
 
 	select {
-	case err := <-consumerDone:
-		if err != nil {
-			t.Fatalf("consumer returned %v", err)
-		}
+	case <-consumerDone:
 	default:
 		t.Fatal("consumer did not complete")
 	}
@@ -134,25 +125,34 @@ func Run(t *testing.T, newImpl func() ProducerConsumer) {
 
 	t.Run("MultipleBufferedItems", func(t *testing.T) {
 		synctest.Test(t, func(t *testing.T) {
+			expected := []int{1, 2}
 			pc := newImpl()
 			ctx := t.Context()
 
-			for _, event := range []int{1, 2} {
-				if err := pc.Produce(ctx, func() int { return event }); err != nil {
-					t.Fatalf("producer returned %v", err)
-				}
+			for _, event := range expected {
+				go pc.Produce(ctx, func() int { return event })
 			}
+
+			actual := make(chan int, len(expected))
+			for range len(expected) {
+				go pc.Consume(ctx, func(event int) {
+					actual <- event
+				})
+			}
+
+			synctest.Wait()
 
 			var got []int
-			for range 2 {
-				if err := pc.Consume(ctx, func(event int) {
+			for range expected {
+				select {
+				case event := <-actual:
 					got = append(got, event)
-				}); err != nil {
-					t.Fatalf("consumer returned %v", err)
+				default:
+					break
 				}
 			}
-
 			slices.Sort(got)
+
 			if !slices.Equal(got, []int{1, 2}) {
 				t.Fatalf("consumers got %v, want [1 2] in some order", got)
 			}
@@ -166,15 +166,17 @@ func Run(t *testing.T, newImpl func() ProducerConsumer) {
 
 			firstEntered := make(chan struct{})
 			firstRelease := make(chan struct{})
-			firstDone := make(chan error, 1)
-			secondDone := make(chan error, 1)
+			firstDone := make(chan struct{})
+			secondEntered := make(chan struct{})
+			secondDone := make(chan struct{})
 
 			go func() {
-				firstDone <- pc.Produce(ctx, func() int {
+				pc.Produce(ctx, func() int {
 					close(firstEntered)
 					<-firstRelease
 					return 1
 				})
+				close(firstDone)
 			}()
 
 			synctest.Wait()
@@ -186,30 +188,36 @@ func Run(t *testing.T, newImpl func() ProducerConsumer) {
 			}
 
 			go func() {
-				secondDone <- pc.Produce(ctx, func() int { return 2 })
+				pc.Produce(ctx, func() int {
+					close(secondEntered)
+					return 2
+				})
+				close(secondDone)
 			}()
 
 			synctest.Wait()
 
 			select {
-			case err := <-secondDone:
-				if err != nil {
-					t.Fatalf("second producer returned %v", err)
-				}
+			case <-secondEntered:
 			default:
-				t.Fatal("second producer blocked while another producer was still in waitForEvent")
+				t.Fatal("second producer could not enter waitForEvent while first producer was blocked")
 			}
 
 			close(firstRelease)
+			go pc.Consume(ctx, func(event int) {})
+			go pc.Consume(ctx, func(event int) {})
 			synctest.Wait()
 
 			select {
-			case err := <-firstDone:
-				if err != nil {
-					t.Fatalf("first producer returned %v", err)
-				}
+			case <-firstDone:
 			default:
 				t.Fatal("first producer did not complete")
+			}
+
+			select {
+			case <-secondDone:
+			default:
+				t.Fatal("second producer did not complete")
 			}
 		})
 	})
@@ -219,25 +227,28 @@ func Run(t *testing.T, newImpl func() ProducerConsumer) {
 			pc := newImpl()
 			ctx := t.Context()
 
-			if err := pc.Produce(ctx, func() int { return 1 }); err != nil {
-				t.Fatalf("producer returned %v", err)
-			}
+			go pc.Produce(ctx, func() int { return 1 })
+			go pc.Consume(ctx, func(int) {})
+			synctest.Wait()
 
 			processEntered := make(chan struct{})
 			processRelease := make(chan struct{})
-			firstDone := make(chan error, 1)
-			secondDone := make(chan error, 1)
+			firstDone := make(chan struct{})
+			secondEntered := make(chan struct{})
+			secondDone := make(chan struct{})
 
 			go func() {
-				firstDone <- pc.Consume(ctx, func(event int) {
+				pc.Consume(ctx, func(event int) {
 					if event != 1 {
 						t.Errorf("first consumer got %d, want 1", event)
 					}
 					close(processEntered)
 					<-processRelease
 				})
+				close(firstDone)
 			}()
 
+			go pc.Produce(ctx, func() int { return 1 })
 			synctest.Wait()
 
 			select {
@@ -247,38 +258,35 @@ func Run(t *testing.T, newImpl func() ProducerConsumer) {
 			}
 
 			go func() {
-				secondDone <- pc.Produce(ctx, func() int { return 2 })
+				pc.Produce(ctx, func() int {
+					close(secondEntered)
+					return 2
+				})
+				close(secondDone)
 			}()
 
 			synctest.Wait()
 
 			select {
-			case err := <-secondDone:
-				if err != nil {
-					t.Fatalf("second producer returned %v", err)
-				}
+			case <-secondEntered:
 			default:
-				t.Fatal("producer blocked while another consumer was processing outside the buffer")
+				t.Fatal("second producer could not enter waitForEvent while another consumer was processing")
 			}
 
 			close(processRelease)
+			go pc.Consume(ctx, func(int) {})
 			synctest.Wait()
 
 			select {
-			case err := <-firstDone:
-				if err != nil {
-					t.Fatalf("first consumer returned %v", err)
-				}
+			case <-firstDone:
 			default:
 				t.Fatal("first consumer did not complete")
 			}
 
-			if err := pc.Consume(ctx, func(event int) {
-				if event != 2 {
-					t.Errorf("second consumer got %d, want 2", event)
-				}
-			}); err != nil {
-				t.Fatalf("second consumer returned %v", err)
+			select {
+			case <-secondDone:
+			default:
+				t.Fatal("second producer did not complete")
 			}
 		})
 	})
@@ -290,12 +298,13 @@ func Run(t *testing.T, newImpl func() ProducerConsumer) {
 
 			pc := newImpl()
 			var processed atomic.Bool
-			done := make(chan error, 1)
+			done := make(chan struct{}, 1)
 
 			go func() {
-				done <- pc.Consume(ctx, func(int) {
+				pc.Consume(ctx, func(int) {
 					processed.Store(true)
 				})
+				done <- struct{}{}
 			}()
 
 			synctest.Wait()
@@ -304,10 +313,7 @@ func Run(t *testing.T, newImpl func() ProducerConsumer) {
 			synctest.Wait()
 
 			select {
-			case err := <-done:
-				if !errors.Is(err, context.Canceled) {
-					t.Fatalf("consumer returned %v, want context.Canceled", err)
-				}
+			case <-done:
 			default:
 				t.Fatal("consumer did not exit after cancellation")
 			}
@@ -325,11 +331,12 @@ func Run(t *testing.T, newImpl func() ProducerConsumer) {
 			waitingCtx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
-			waitingDone := make(chan error, 1)
+			waitingDone := make(chan struct{}, 1)
 			go func() {
-				waitingDone <- pc.Consume(waitingCtx, func(int) {
+				pc.Consume(waitingCtx, func(int) {
 					t.Error("canceled consumer processed an item")
 				})
+				waitingDone <- struct{}{}
 			}()
 
 			synctest.Wait()
@@ -337,23 +344,38 @@ func Run(t *testing.T, newImpl func() ProducerConsumer) {
 			synctest.Wait()
 
 			select {
-			case err := <-waitingDone:
-				if !errors.Is(err, context.Canceled) {
-					t.Fatalf("waiting consumer returned %v, want context.Canceled", err)
-				}
+			case <-waitingDone:
 			default:
 				t.Fatal("waiting consumer did not exit after cancellation")
 			}
 
-			if err := pc.Produce(t.Context(), func() int { return 11 }); err != nil {
-				t.Fatalf("producer returned %v", err)
-			}
-
 			var got int
-			if err := pc.Consume(t.Context(), func(event int) {
-				got = event
-			}); err != nil {
-				t.Fatalf("replacement consumer returned %v", err)
+			produced := make(chan struct{})
+			consumed := make(chan struct{})
+
+			go func() {
+				pc.Produce(t.Context(), func() int { return 11 })
+				close(produced)
+			}()
+
+			go func() {
+				pc.Consume(t.Context(), func(event int) {
+					got = event
+				})
+				close(consumed)
+			}()
+
+			synctest.Wait()
+
+			select {
+			case <-produced:
+			default:
+				t.Fatal("replacement producer did not complete")
+			}
+			select {
+			case <-consumed:
+			default:
+				t.Fatal("replacement consumer did not complete")
 			}
 
 			if got != 11 {
@@ -372,12 +394,8 @@ func Benchmark(b *testing.B, newImpl func() ProducerConsumer) {
 		pc := newImpl()
 
 		for b.Loop() {
-			if err := pc.Produce(ctx, func() int { return 1 }); err != nil {
-				b.Fatalf("producer returned %v", err)
-			}
-			if err := pc.Consume(ctx, func(int) {}); err != nil {
-				b.Fatalf("consumer returned %v", err)
-			}
+			go pc.Produce(ctx, func() int { return 1 })
+			pc.Consume(ctx, func(int) {})
 		}
 	})
 
@@ -386,17 +404,8 @@ func Benchmark(b *testing.B, newImpl func() ProducerConsumer) {
 		pc := newImpl()
 
 		for b.Loop() {
-			done := make(chan error, 1)
-			go func() {
-				done <- pc.Consume(ctx, func(int) {})
-			}()
-
-			if err := pc.Produce(ctx, func() int { return 1 }); err != nil {
-				b.Fatalf("producer returned %v", err)
-			}
-			if err := <-done; err != nil {
-				b.Fatalf("consumer returned %v", err)
-			}
+			go pc.Consume(ctx, func(int) {})
+			pc.Produce(ctx, func() int { return 1 })
 		}
 	})
 }
