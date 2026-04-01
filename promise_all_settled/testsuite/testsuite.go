@@ -13,7 +13,7 @@ import (
 	promiseallsettled "github.com/N8Brooks/golang-concurrency/promise_all_settled"
 )
 
-type PromiseAllSettledFunc func([]func() promise.Promiser[int]) promise.Promiser[[]promiseallsettled.Obj]
+type PromiseAllSettledFunc func([]func() promise.Promiser[int]) []promiseallsettled.Result[int]
 
 func resolveAfter(n int, d time.Duration) func() promise.Promiser[int] {
 	return func() promise.Promiser[int] {
@@ -41,15 +41,15 @@ func Run(t *testing.T, promiseAllSettled PromiseAllSettledFunc) {
 
 	tests := []struct {
 		functions []func() promise.Promiser[int]
-		want      []promiseallsettled.Obj
+		want      []promiseallsettled.Result[int]
 		elapsed   time.Duration
 	}{
 		{
 			functions: []func() promise.Promiser[int]{
 				resolveAfter(15, 100*time.Millisecond),
 			},
-			want: []promiseallsettled.Obj{
-				{Status: "fulfilled", Value: 15},
+			want: []promiseallsettled.Result[int]{
+				{Val: 15},
 			},
 			elapsed: 100 * time.Millisecond,
 		},
@@ -58,9 +58,9 @@ func Run(t *testing.T, promiseAllSettled PromiseAllSettledFunc) {
 				resolveAfter(20, 100*time.Millisecond),
 				resolveAfter(15, 100*time.Millisecond),
 			},
-			want: []promiseallsettled.Obj{
-				{Status: "fulfilled", Value: 20},
-				{Status: "fulfilled", Value: 15},
+			want: []promiseallsettled.Result[int]{
+				{Val: 20},
+				{Val: 15},
 			},
 			elapsed: 100 * time.Millisecond,
 		},
@@ -69,9 +69,9 @@ func Run(t *testing.T, promiseAllSettled PromiseAllSettledFunc) {
 				resolveAfter(30, 200*time.Millisecond),
 				rejectAfter(errBoom, 100*time.Millisecond),
 			},
-			want: []promiseallsettled.Obj{
-				{Status: "fulfilled", Value: 30},
-				{Status: "rejected", Reason: errBoom.Error()},
+			want: []promiseallsettled.Result[int]{
+				{Val: 30},
+				{Err: errBoom},
 			},
 			elapsed: 200 * time.Millisecond,
 		},
@@ -82,7 +82,7 @@ func Run(t *testing.T, promiseAllSettled PromiseAllSettledFunc) {
 			t.Parallel()
 			synctest.Test(t, func(t *testing.T) {
 				start := time.Now()
-				got := promiseAllSettled(tt.functions).Await()
+				got := promiseAllSettled(tt.functions)
 				if elapsed := time.Since(start); elapsed > tt.elapsed+threshold {
 					t.Errorf("PromiseAllSettled() took %v, want %v", elapsed, tt.elapsed)
 				}
@@ -105,7 +105,7 @@ func Benchmark(b *testing.B, promiseAllSettled PromiseAllSettledFunc) {
 	}
 
 	for b.Loop() {
-		if got := promiseAllSettled(functions).Await(); len(got) != 3 {
+		if got := promiseAllSettled(functions); len(got) != 3 {
 			b.Fatalf("PromiseAllSettled() len = %d", len(got))
 		}
 	}

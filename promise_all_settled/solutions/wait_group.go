@@ -8,24 +8,20 @@ import (
 	promiseallsettled "github.com/N8Brooks/golang-concurrency/promise_all_settled"
 )
 
-func PromiseAllSettled(functions []func() promise.Promiser[int]) promise.Promiser[[]promiseallsettled.Obj] {
+func PromiseAllSettled[T any](functions []func() promise.Promiser[T]) []promiseallsettled.Result[T] {
 	var wg sync.WaitGroup
 	wg.Add(len(functions))
 
-	results := make([]promiseallsettled.Obj, len(functions))
+	results := make([]promiseallsettled.Result[T], len(functions))
 
 	for i, function := range functions {
-		go func(i int, function func() promise.Promiser[int]) {
+		go func() {
 			defer wg.Done()
 			val, err := function().Result()
-			if err != nil {
-				results[i] = promiseallsettled.Obj{Status: "rejected", Reason: err.Error()}
-			} else {
-				results[i] = promiseallsettled.Obj{Status: "fulfilled", Value: val}
-			}
-		}(i, function)
+			results[i] = promiseallsettled.Result[T]{Val: val, Err: err}
+		}()
 	}
 
 	wg.Wait()
-	return promise.Resolve(results)
+	return results
 }

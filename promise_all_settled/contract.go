@@ -2,8 +2,7 @@
 // and shared result type.
 package promise_all_settled
 
-type Obj struct {
-	Status string
-	Value  int
-	Reason string
+type Result[T any] struct {
+	Val T
+	Err error
 }
