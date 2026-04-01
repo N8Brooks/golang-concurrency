@@ -4,6 +4,8 @@ package solutions
 import (
 	"context"
 	"sync"
+
+	"golang.org/x/sync/semaphore"
 )
 
 const (
@@ -17,14 +19,21 @@ type Bitmask struct {
 
 	mu        sync.Mutex
 	available uint8
-	smokers   [8]*countingSemaphore
+	smokers   [8]*semaphore.Weighted
 }
 
 func NewBitmask(agent Agent) *Bitmask {
 	cs := &Bitmask{agent: agent}
-	cs.smokers[tobaccoBit|paperBit] = newCountingSemaphore(0)
-	cs.smokers[tobaccoBit|matchBit] = newCountingSemaphore(0)
-	cs.smokers[paperBit|matchBit] = newCountingSemaphore(0)
+	ctx := context.TODO()
+	tobaccoSem := semaphore.NewWeighted(1)
+	tobaccoSem.Acquire(ctx, 1)
+	cs.smokers[paperBit|matchBit] = tobaccoSem
+	paperSem := semaphore.NewWeighted(1)
+	paperSem.Acquire(ctx, 1)
+	cs.smokers[tobaccoBit|matchBit] = paperSem
+	matchSem := semaphore.NewWeighted(1)
+	matchSem.Acquire(ctx, 1)
+	cs.smokers[tobaccoBit|paperBit] = matchSem
 	return cs
 }
 
@@ -44,8 +53,7 @@ func (cs *Bitmask) pusher(ctx context.Context, ingredient chan struct{}, bit uin
 		case <-ingredient:
 		}
 
-		var target *countingSemaphore
-
+		var target *semaphore.Weighted
 		cs.mu.Lock()
 		cs.available |= bit
 		switch cs.available {
@@ -56,14 +64,14 @@ func (cs *Bitmask) pusher(ctx context.Context, ingredient chan struct{}, bit uin
 		cs.mu.Unlock()
 
 		if target != nil {
-			target.Signal()
+			target.Release(1)
 		}
 	}
 }
 
 func (cs *Bitmask) SmokerWithTobacco(ctx context.Context, makeCigarette, smoke func()) {
 	for {
-		if !cs.smokers[paperBit|matchBit].Wait(ctx) {
+		if err := cs.smokers[paperBit|matchBit].Acquire(ctx, 1); err != nil {
 			return
 		}
 		makeCigarette()
@@ -74,7 +82,7 @@ func (cs *Bitmask) SmokerWithTobacco(ctx context.Context, makeCigarette, smoke f
 
 func (cs *Bitmask) SmokerWithPaper(ctx context.Context, makeCigarette, smoke func()) {
 	for {
-		if !cs.smokers[tobaccoBit|matchBit].Wait(ctx) {
+		if err := cs.smokers[tobaccoBit|matchBit].Acquire(ctx, 1); err != nil {
 			return
 		}
 		makeCigarette()
@@ -85,7 +93,7 @@ func (cs *Bitmask) SmokerWithPaper(ctx context.Context, makeCigarette, smoke fun
 
 func (cs *Bitmask) SmokerWithMatch(ctx context.Context, makeCigarette, smoke func()) {
 	for {
-		if !cs.smokers[tobaccoBit|paperBit].Wait(ctx) {
+		if err := cs.smokers[tobaccoBit|paperBit].Acquire(ctx, 1); err != nil {
 			return
 		}
 		makeCigarette()

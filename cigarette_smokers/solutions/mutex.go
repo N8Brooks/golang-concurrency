@@ -4,6 +4,8 @@ package solutions
 import (
 	"context"
 	"sync"
+
+	"golang.org/x/sync/semaphore"
 )
 
 type Mutex struct {
@@ -14,17 +16,24 @@ type Mutex struct {
 	isPaper   bool
 	isMatch   bool
 
-	tobaccoSem *countingSemaphore
-	paperSem   *countingSemaphore
-	matchSem   *countingSemaphore
+	tobaccoSem *semaphore.Weighted
+	paperSem   *semaphore.Weighted
+	matchSem   *semaphore.Weighted
 }
 
 func NewMutex(agent Agent) *Mutex {
+	ctx := context.TODO()
+	tobaccoSem := semaphore.NewWeighted(1)
+	tobaccoSem.Acquire(ctx, 1)
+	paperSem := semaphore.NewWeighted(1)
+	paperSem.Acquire(ctx, 1)
+	matchSem := semaphore.NewWeighted(1)
+	matchSem.Acquire(ctx, 1)
 	return &Mutex{
 		agent:      agent,
-		tobaccoSem: newCountingSemaphore(0),
-		paperSem:   newCountingSemaphore(0),
-		matchSem:   newCountingSemaphore(0),
+		tobaccoSem: tobaccoSem,
+		paperSem:   paperSem,
+		matchSem:   matchSem,
 	}
 }
 
@@ -44,8 +53,7 @@ func (cs *Mutex) pusherTobacco(ctx context.Context) {
 		case <-cs.agent.Tobacco():
 		}
 
-		var target *countingSemaphore
-
+		var target *semaphore.Weighted
 		cs.mu.Lock()
 		switch {
 		case cs.isPaper:
@@ -60,7 +68,7 @@ func (cs *Mutex) pusherTobacco(ctx context.Context) {
 		cs.mu.Unlock()
 
 		if target != nil {
-			target.Signal()
+			target.Release(1)
 		}
 	}
 }
@@ -73,7 +81,7 @@ func (cs *Mutex) pusherPaper(ctx context.Context) {
 		case <-cs.agent.Paper():
 		}
 
-		var target *countingSemaphore
+		var target *semaphore.Weighted
 
 		cs.mu.Lock()
 		switch {
@@ -89,7 +97,7 @@ func (cs *Mutex) pusherPaper(ctx context.Context) {
 		cs.mu.Unlock()
 
 		if target != nil {
-			target.Signal()
+			target.Release(1)
 		}
 	}
 }
@@ -102,7 +110,7 @@ func (cs *Mutex) pusherMatch(ctx context.Context) {
 		case <-cs.agent.Match():
 		}
 
-		var target *countingSemaphore
+		var target *semaphore.Weighted
 
 		cs.mu.Lock()
 		switch {
@@ -118,14 +126,14 @@ func (cs *Mutex) pusherMatch(ctx context.Context) {
 		cs.mu.Unlock()
 
 		if target != nil {
-			target.Signal()
+			target.Release(1)
 		}
 	}
 }
 
 func (cs *Mutex) SmokerWithTobacco(ctx context.Context, makeCigarette, smoke func()) {
 	for {
-		if !cs.tobaccoSem.Wait(ctx) {
+		if err := cs.tobaccoSem.Acquire(ctx, 1); err != nil {
 			return
 		}
 		makeCigarette()
@@ -136,7 +144,7 @@ func (cs *Mutex) SmokerWithTobacco(ctx context.Context, makeCigarette, smoke fun
 
 func (cs *Mutex) SmokerWithPaper(ctx context.Context, makeCigarette, smoke func()) {
 	for {
-		if !cs.paperSem.Wait(ctx) {
+		if err := cs.paperSem.Acquire(ctx, 1); err != nil {
 			return
 		}
 		makeCigarette()
@@ -147,7 +155,7 @@ func (cs *Mutex) SmokerWithPaper(ctx context.Context, makeCigarette, smoke func(
 
 func (cs *Mutex) SmokerWithMatch(ctx context.Context, makeCigarette, smoke func()) {
 	for {
-		if !cs.matchSem.Wait(ctx) {
+		if err := cs.matchSem.Acquire(ctx, 1); err != nil {
 			return
 		}
 		makeCigarette()
