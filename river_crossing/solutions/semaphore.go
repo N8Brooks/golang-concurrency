@@ -12,10 +12,6 @@ type semaphore struct {
 	waiters []chan struct{}
 }
 
-func newSemaphore(count int) *semaphore {
-	return &semaphore{count: count}
-}
-
 func (s *semaphore) Signal() {
 	s.mu.Lock()
 	if len(s.waiters) > 0 {
